@@ -198,3 +198,7 @@ importers:
       typescript:
         specifier: ^5
         version: 5.9.2
+packages:
+  /@google/generative-ai@0.15.0:
+    resolution: {integrity: sha512-PcOCe+VDD3nbDlYwKjzVKtuD8p9tlf9uB4I7h+5XCdBbHqY93XjCzAVk4vWYWtS0P0RjNuxl8wIqk+K6H4WcNw==}
+    engines: {node: '>=18'}
