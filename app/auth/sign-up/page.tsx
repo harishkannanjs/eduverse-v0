@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
@@ -30,11 +29,17 @@ export default function SignUpPage() {
     setError("")
 
     try {
+      // Pick correct redirect depending on environment
+      const redirectTo =
+        process.env.NODE_ENV === "development"
+          ? process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/auth/login`
+          : process.env.NEXT_PUBLIC_PROD_SUPABASE_REDIRECT_URL || `${window.location.origin}/auth/login`
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/auth/login`,
+          emailRedirectTo: redirectTo,
           data: {
             full_name: fullName,
             role: role,
@@ -63,6 +68,7 @@ export default function SignUpPage() {
         setSuccess(true)
       }
     } catch (err) {
+      console.error(err)
       setError("An unexpected error occurred")
     } finally {
       setLoading(false)
