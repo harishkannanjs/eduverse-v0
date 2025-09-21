@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { CommunicationHub } from "@/components/communication-hub"
-import { getCurrentUser } from "@/lib/auth"
+import { getCurrentUser } from "@/lib/auth-client"
 
 export default function CommunicationPage() {
   const [isLoading, setIsLoading] = useState(true)
