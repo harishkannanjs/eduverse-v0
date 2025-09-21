@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { getCurrentUser, User } from "@/lib/auth"
+import { getCurrentUser, User } from "@/lib/auth-client"
 import {
   Calendar as CalendarIcon,
   Clock,
