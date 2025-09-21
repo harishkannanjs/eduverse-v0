@@ -10,6 +10,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { Slider } from "@/components/ui/slider"
 import {
   Brain,
   Clock,
@@ -23,6 +25,9 @@ import {
   TrendingUp,
   Zap,
   Star,
+  Share2,
+  Users,
+  Heart,
 } from "lucide-react"
 
 interface Question {
@@ -46,6 +51,7 @@ interface Quiz {
   timeLimit: number // in minutes
   createdAt: Date
   description: string
+  teacherName?: string // Added for shared quizzes
 }
 
 interface QuizResult {
@@ -77,6 +83,14 @@ export default function QuizPage() {
   const [quizHistory, setQuizHistory] = useState<QuizResult[]>([])
   const [selectedSubject, setSelectedSubject] = useState<string>("all")
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all")
+  const [shareCode, setShareCode] = useState("")
+  const [isAccessingSharedQuiz, setIsAccessingSharedQuiz] = useState(false)
+  const [wellnessData, setWellnessData] = useState({
+    stressLevel: 5,
+    confidenceLevel: 5,
+    focusLevel: 5,
+  })
+  const [showWellnessCheck, setShowWellnessCheck] = useState(false)
 
   useEffect(() => {
     loadStudentProfile()
@@ -229,7 +243,7 @@ export default function QuizPage() {
     setCurrentQuestionIndex(0)
     setAnswers({})
     setTimeRemaining(quiz.timeLimit * 60) // Convert to seconds
-    setQuizState("active")
+    setShowWellnessCheck(true) // Show wellness check before starting
   }
 
   const handleAnswer = (questionId: string, answer: string | string[]) => {
@@ -251,7 +265,7 @@ export default function QuizPage() {
     }
   }
 
-  const submitQuiz = () => {
+  const submitQuiz = async () => {
     if (!currentQuiz) return
 
     const score = calculateScore()
@@ -262,6 +276,28 @@ export default function QuizPage() {
       timeSpent: currentQuiz.timeLimit * 60 - timeRemaining,
       answers,
       completedAt: new Date(),
+    }
+
+    // Submit to analytics API with wellness data
+    try {
+      await fetch("/api/quiz-analytics", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "submit",
+          quizId: currentQuiz.id,
+          studentId: "current-student", // Replace with actual student ID
+          studentName: "Current Student", // Replace with actual student name
+          score,
+          timeSpent: currentQuiz.timeLimit * 60 - timeRemaining,
+          answers,
+          wellnessData,
+        }),
+      })
+    } catch (error) {
+      console.error("Error submitting analytics:", error)
     }
 
     setQuizResult(result)
@@ -336,6 +372,141 @@ export default function QuizPage() {
     quizHistory.length > 0
       ? Math.round(quizHistory.reduce((sum, result) => sum + result.score, 0) / quizHistory.length)
       : 0
+
+  const accessSharedQuiz = async () => {
+    if (!shareCode.trim()) return
+
+    setIsAccessingSharedQuiz(true)
+    try {
+      const response = await fetch("/api/quiz-sharing", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "access",
+          shareCode: shareCode.trim().toUpperCase(),
+        }),
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        const sharedQuiz = {
+          ...data.quiz,
+          createdAt: new Date(data.quiz.createdAt),
+        }
+        setAvailableQuizzes((prev) => {
+          const exists = prev.find((q) => q.id === sharedQuiz.id)
+          if (exists) return prev
+          return [...prev, sharedQuiz]
+        })
+        setShareCode("")
+        // Auto-start the shared quiz
+        startQuiz(sharedQuiz)
+      } else {
+        alert(data.error || "Failed to access quiz")
+      }
+    } catch (error) {
+      console.error("Error accessing shared quiz:", error)
+      alert("Failed to access quiz. Please try again.")
+    } finally {
+      setIsAccessingSharedQuiz(false)
+    }
+  }
+
+  const startQuizAfterWellnessCheck = () => {
+    setShowWellnessCheck(false)
+    setQuizState("active")
+  }
+
+  if (showWellnessCheck && currentQuiz) {
+    return (
+      <DashboardLayout title="Wellness Check">
+        <div className="max-w-2xl mx-auto space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Heart className="h-5 w-5" />
+                Quick Wellness Check
+              </CardTitle>
+              <CardDescription>
+                Help us understand how you're feeling before starting "{currentQuiz.title}"
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium">How stressed do you feel right now?</Label>
+                  <div className="mt-2">
+                    <Slider
+                      value={[wellnessData.stressLevel]}
+                      onValueChange={(value) => setWellnessData((prev) => ({ ...prev, stressLevel: value[0] }))}
+                      max={10}
+                      min={1}
+                      step={1}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                      <span>Very Relaxed</span>
+                      <span>{wellnessData.stressLevel}/10</span>
+                      <span>Very Stressed</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-sm font-medium">How confident do you feel about this topic?</Label>
+                  <div className="mt-2">
+                    <Slider
+                      value={[wellnessData.confidenceLevel]}
+                      onValueChange={(value) => setWellnessData((prev) => ({ ...prev, confidenceLevel: value[0] }))}
+                      max={10}
+                      min={1}
+                      step={1}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                      <span>Not Confident</span>
+                      <span>{wellnessData.confidenceLevel}/10</span>
+                      <span>Very Confident</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-sm font-medium">How focused do you feel right now?</Label>
+                  <div className="mt-2">
+                    <Slider
+                      value={[wellnessData.focusLevel]}
+                      onValueChange={(value) => setWellnessData((prev) => ({ ...prev, focusLevel: value[0] }))}
+                      max={10}
+                      min={1}
+                      step={1}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                      <span>Distracted</span>
+                      <span>{wellnessData.focusLevel}/10</span>
+                      <span>Very Focused</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <Button variant="outline" onClick={() => setShowWellnessCheck(false)}>
+                  Skip Check
+                </Button>
+                <Button onClick={startQuizAfterWellnessCheck} className="flex-1">
+                  Start Quiz
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    )
+  }
 
   if (quizState === "active" && currentQuiz) {
     const currentQuestion = currentQuiz.questions[currentQuestionIndex]
@@ -657,6 +828,41 @@ export default function QuizPage() {
           </Card>
         </div>
 
+        {/* Access Shared Quiz */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Share2 className="h-5 w-5" />
+              Access Shared Quiz
+            </CardTitle>
+            <CardDescription>Enter a quiz code shared by your teacher</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-4">
+              <Input
+                placeholder="Enter 6-digit quiz code (e.g., ABC123)"
+                value={shareCode}
+                onChange={(e) => setShareCode(e.target.value.toUpperCase())}
+                maxLength={6}
+                className="flex-1"
+              />
+              <Button onClick={accessSharedQuiz} disabled={isAccessingSharedQuiz || shareCode.length !== 6}>
+                {isAccessingSharedQuiz ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Accessing...
+                  </>
+                ) : (
+                  <>
+                    <Users className="h-4 w-4 mr-2" />
+                    Access Quiz
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Quiz Generation */}
         <Card>
           <CardHeader>
@@ -667,6 +873,36 @@ export default function QuizPage() {
             <CardDescription>Create a custom quiz based on your learning profile and performance</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {studentProfile && (
+              <div className="p-4 bg-muted/50 rounded-lg mb-4">
+                <h4 className="font-medium mb-2">Your Learning Profile</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Subjects:</span>
+                    <p className="font-medium">{studentProfile.subjects.join(", ")}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Learning Style:</span>
+                    <p className="font-medium">{studentProfile.learningStyle}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Avg Performance:</span>
+                    <p className="font-medium">
+                      {Math.round(
+                        Object.values(studentProfile.percentageScores).reduce((a, b) => a + b, 0) /
+                          Object.values(studentProfile.percentageScores).length,
+                      )}
+                      %
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Focus Areas:</span>
+                    <p className="font-medium">{studentProfile.difficulties.slice(0, 2).join(", ")}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Subject</Label>
@@ -743,7 +979,7 @@ export default function QuizPage() {
               <div className="text-center py-8 text-muted-foreground">
                 <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p className="mb-2">No quizzes available</p>
-                <p className="text-sm">Generate your first personalized quiz above!</p>
+                <p className="text-sm">Generate your first personalized quiz above or access a shared quiz!</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -754,6 +990,14 @@ export default function QuizPage() {
                         <div>
                           <CardTitle className="text-lg">{quiz.title}</CardTitle>
                           <CardDescription className="line-clamp-2">{quiz.description}</CardDescription>
+                          {(quiz as any).teacherName && (
+                            <div className="flex items-center gap-1 mt-2">
+                              <Users className="h-3 w-3" />
+                              <span className="text-xs text-muted-foreground">
+                                Shared by {(quiz as any).teacherName}
+                              </span>
+                            </div>
+                          )}
                         </div>
                         <Badge variant="outline" className="capitalize">
                           {quiz.difficulty}

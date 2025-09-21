@@ -1,11 +1,26 @@
 "use client"
 
+import { useState } from "react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   TrendingUp,
   Brain,
@@ -14,16 +29,234 @@ import {
   Calendar,
   BookOpen,
   Trophy,
-  AlertTriangle,
-  CheckCircle,
   Clock,
   Target,
   BarChart3,
   Heart,
   User,
+  Send,
+  Phone,
+  Video,
+  Mail,
+  Download,
+  Settings,
+  Plus,
+  Search,
+  Filter,
+  MessageCircle,
+  CalendarDays,
+  Paperclip,
 } from "lucide-react"
 
+interface TeacherMessage {
+  id: string
+  teacherName: string
+  teacherInitials: string
+  subject: string
+  message: string
+  timestamp: Date
+  priority: "high" | "medium" | "low"
+  isRead: boolean
+  hasAttachment?: boolean
+}
+
+interface ConferenceRequest {
+  id: string
+  teacherName: string
+  subject: string
+  preferredDates: string[]
+  reason: string
+  urgency: "high" | "medium" | "low"
+  status: "pending" | "scheduled" | "completed"
+}
+
 export default function ParentDashboard() {
+  const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false)
+  const [isConferenceDialogOpen, setIsConferenceDialogOpen] = useState(false)
+  const [selectedTeacher, setSelectedTeacher] = useState("")
+  const [messageFilter, setMessageFilter] = useState("all")
+  const [searchQuery, setSearchQuery] = useState("")
+
+  // Mock data for enhanced communication features
+  const [messages, setMessages] = useState<TeacherMessage[]>([
+    {
+      id: "1",
+      teacherName: "Mrs. Wilson",
+      teacherInitials: "SW",
+      subject: "Mathematics",
+      message:
+        "Alex did exceptionally well on today's quiz! His understanding of quadratic equations has really improved. I'd love to discuss his potential for advanced placement next year.",
+      timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000), // 1 hour ago
+      priority: "medium",
+      isRead: false,
+      hasAttachment: true,
+    },
+    {
+      id: "2",
+      teacherName: "Mr. Davis",
+      teacherInitials: "JD",
+      subject: "Chemistry",
+      message:
+        "Alex might benefit from some extra practice with balancing chemical equations. I've shared some resources and would like to schedule a brief meeting to discuss study strategies.",
+      timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+      priority: "high",
+      isRead: true,
+    },
+    {
+      id: "3",
+      teacherName: "Ms. Martinez",
+      teacherInitials: "LM",
+      subject: "History",
+      message:
+        "Great job on the World War II project! Alex's research was thorough and well-presented. His analytical skills are developing nicely.",
+      timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+      priority: "low",
+      isRead: true,
+    },
+    {
+      id: "4",
+      teacherName: "Dr. Thompson",
+      teacherInitials: "ET",
+      subject: "English Literature",
+      message:
+        "I wanted to reach out about Alex's recent essay on Shakespeare. While his analysis is insightful, I think we should work on his citation format. Could we set up a time to discuss?",
+      timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+      priority: "medium",
+      isRead: false,
+    },
+  ])
+
+  const [conferenceRequests, setConferenceRequests] = useState<ConferenceRequest[]>([
+    {
+      id: "1",
+      teacherName: "Mrs. Wilson",
+      subject: "Mathematics",
+      preferredDates: ["2024-01-15", "2024-01-16", "2024-01-17"],
+      reason: "Discuss advanced placement opportunities",
+      urgency: "medium",
+      status: "pending",
+    },
+    {
+      id: "2",
+      teacherName: "Mr. Davis",
+      subject: "Chemistry",
+      preferredDates: ["2024-01-18", "2024-01-19"],
+      reason: "Review study strategies and additional support",
+      urgency: "high",
+      status: "scheduled",
+    },
+  ])
+
+  const [newMessage, setNewMessage] = useState({
+    teacher: "",
+    subject: "",
+    message: "",
+    priority: "medium" as "high" | "medium" | "low",
+  })
+
+  const [newConferenceRequest, setNewConferenceRequest] = useState({
+    teacher: "",
+    reason: "",
+    preferredDates: ["", "", ""],
+    urgency: "medium" as "high" | "medium" | "low",
+  })
+
+  const teachers = [
+    { name: "Mrs. Wilson", subject: "Mathematics" },
+    { name: "Mr. Davis", subject: "Chemistry" },
+    { name: "Ms. Martinez", subject: "History" },
+    { name: "Dr. Thompson", subject: "English Literature" },
+    { name: "Mr. Johnson", subject: "Physics" },
+    { name: "Ms. Garcia", subject: "Spanish" },
+  ]
+
+  const filteredMessages = messages.filter((message) => {
+    const matchesFilter =
+      messageFilter === "all" ||
+      (messageFilter === "unread" && !message.isRead) ||
+      (messageFilter === "high" && message.priority === "high")
+
+    const matchesSearch =
+      searchQuery === "" ||
+      message.teacherName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      message.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      message.message.toLowerCase().includes(searchQuery.toLowerCase())
+
+    return matchesFilter && matchesSearch
+  })
+
+  const sendMessage = () => {
+    if (!newMessage.teacher || !newMessage.subject || !newMessage.message) return
+
+    const message: TeacherMessage = {
+      id: Date.now().toString(),
+      teacherName: newMessage.teacher,
+      teacherInitials: newMessage.teacher
+        .split(" ")
+        .map((n) => n[0])
+        .join(""),
+      subject: newMessage.subject,
+      message: newMessage.message,
+      timestamp: new Date(),
+      priority: newMessage.priority,
+      isRead: true, // Sent messages are considered read
+    }
+
+    setMessages([message, ...messages])
+    setNewMessage({ teacher: "", subject: "", message: "", priority: "medium" })
+    setIsMessageDialogOpen(false)
+  }
+
+  const requestConference = () => {
+    if (!newConferenceRequest.teacher || !newConferenceRequest.reason) return
+
+    const request: ConferenceRequest = {
+      id: Date.now().toString(),
+      teacherName: newConferenceRequest.teacher,
+      subject: teachers.find((t) => t.name === newConferenceRequest.teacher)?.subject || "",
+      preferredDates: newConferenceRequest.preferredDates.filter((date) => date !== ""),
+      reason: newConferenceRequest.reason,
+      urgency: newConferenceRequest.urgency,
+      status: "pending",
+    }
+
+    setConferenceRequests([request, ...conferenceRequests])
+    setNewConferenceRequest({ teacher: "", reason: "", preferredDates: ["", "", ""], urgency: "medium" })
+    setIsConferenceDialogOpen(false)
+  }
+
+  const markAsRead = (messageId: string) => {
+    setMessages(messages.map((msg) => (msg.id === messageId ? { ...msg, isRead: true } : msg)))
+  }
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "high":
+        return "text-red-600 bg-red-50 border-red-200"
+      case "medium":
+        return "text-orange-600 bg-orange-50 border-orange-200"
+      case "low":
+        return "text-green-600 bg-green-50 border-green-200"
+      default:
+        return "text-gray-600 bg-gray-50 border-gray-200"
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "pending":
+        return "text-yellow-600 bg-yellow-50 border-yellow-200"
+      case "scheduled":
+        return "text-blue-600 bg-blue-50 border-blue-200"
+      case "completed":
+        return "text-green-600 bg-green-50 border-green-200"
+      default:
+        return "text-gray-600 bg-gray-50 border-gray-200"
+    }
+  }
+
+  const unreadCount = messages.filter((msg) => !msg.isRead).length
+
   return (
     <DashboardLayout title="Parent Dashboard">
       <div className="space-y-6">
@@ -33,6 +266,14 @@ export default function ParentDashboard() {
           <p className="text-muted-foreground">
             Alex is doing great this week! Check out the latest progress updates and upcoming events below.
           </p>
+          {unreadCount > 0 && (
+            <div className="mt-3 flex items-center gap-2">
+              <Bell className="h-4 w-4 text-orange-600" />
+              <span className="text-sm text-orange-600 font-medium">
+                You have {unreadCount} unread message{unreadCount !== 1 ? "s" : ""} from teachers
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Quick Stats */}
@@ -94,15 +335,375 @@ export default function ParentDashboard() {
           </Card>
         </div>
 
-        <Tabs defaultValue="progress" className="space-y-6">
+        <Tabs defaultValue="communication" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="communication">Communication</TabsTrigger>
             <TabsTrigger value="progress">Progress Overview</TabsTrigger>
             <TabsTrigger value="insights">AI Insights</TabsTrigger>
             <TabsTrigger value="alerts">Alerts & Updates</TabsTrigger>
-            <TabsTrigger value="communication">Communication</TabsTrigger>
           </TabsList>
 
+          <TabsContent value="communication" className="space-y-6">
+            {/* Enhanced Communication Hub */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Messages Section */}
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="h-5 w-5" />
+                      <CardTitle>Teacher Communications</CardTitle>
+                      {unreadCount > 0 && (
+                        <Badge variant="destructive" className="ml-2">
+                          {unreadCount} new
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Dialog open={isMessageDialogOpen} onOpenChange={setIsMessageDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button size="sm">
+                            <Plus className="h-4 w-4 mr-2" />
+                            New Message
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-md">
+                          <DialogHeader>
+                            <DialogTitle>Send Message to Teacher</DialogTitle>
+                            <DialogDescription>
+                              Communicate directly with your child's teachers about academic progress or concerns.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label>Teacher</Label>
+                              <Select
+                                value={newMessage.teacher}
+                                onValueChange={(value) => setNewMessage({ ...newMessage, teacher: value })}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a teacher" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {teachers.map((teacher) => (
+                                    <SelectItem key={teacher.name} value={teacher.name}>
+                                      {teacher.name} - {teacher.subject}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Subject</Label>
+                              <Input
+                                placeholder="Message subject"
+                                value={newMessage.subject}
+                                onChange={(e) => setNewMessage({ ...newMessage, subject: e.target.value })}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Priority</Label>
+                              <Select
+                                value={newMessage.priority}
+                                onValueChange={(value: any) => setNewMessage({ ...newMessage, priority: value })}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="low">Low Priority</SelectItem>
+                                  <SelectItem value="medium">Medium Priority</SelectItem>
+                                  <SelectItem value="high">High Priority</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Message</Label>
+                              <Textarea
+                                placeholder="Type your message here..."
+                                value={newMessage.message}
+                                onChange={(e) => setNewMessage({ ...newMessage, message: e.target.value })}
+                                rows={4}
+                              />
+                            </div>
+                          </div>
+                          <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsMessageDialogOpen(false)}>
+                              Cancel
+                            </Button>
+                            <Button
+                              onClick={sendMessage}
+                              disabled={!newMessage.teacher || !newMessage.subject || !newMessage.message}
+                            >
+                              <Send className="h-4 w-4 mr-2" />
+                              Send Message
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </div>
+                  <CardDescription>Recent messages and communications with Alex's teachers</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {/* Message Filters */}
+                  <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                    <div className="flex-1">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search messages..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
+                    </div>
+                    <Select value={messageFilter} onValueChange={setMessageFilter}>
+                      <SelectTrigger className="w-40">
+                        <Filter className="h-4 w-4 mr-2" />
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Messages</SelectItem>
+                        <SelectItem value="unread">Unread Only</SelectItem>
+                        <SelectItem value="high">High Priority</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <ScrollArea className="h-96">
+                    <div className="space-y-3">
+                      {filteredMessages.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p>No messages match your current filters</p>
+                        </div>
+                      ) : (
+                        filteredMessages.map((message) => (
+                          <div
+                            key={message.id}
+                            className={`p-4 border rounded-lg transition-all hover:shadow-md cursor-pointer ${
+                              !message.isRead ? "bg-primary/5 border-primary/20" : "bg-card"
+                            }`}
+                            onClick={() => markAsRead(message.id)}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                                <span className="text-sm font-medium text-primary">{message.teacherInitials}</span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-medium text-sm">{message.teacherName}</h4>
+                                    <Badge variant="outline" className="text-xs">
+                                      {message.subject}
+                                    </Badge>
+                                    <Badge
+                                      variant="outline"
+                                      className={`text-xs ${getPriorityColor(message.priority)}`}
+                                    >
+                                      {message.priority}
+                                    </Badge>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {!message.isRead && <div className="w-2 h-2 bg-primary rounded-full"></div>}
+                                    <span className="text-xs text-muted-foreground">
+                                      {message.timestamp.toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                </div>
+                                <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{message.message}</p>
+                                <div className="flex items-center gap-2">
+                                  <Button size="sm" variant="outline">
+                                    <MessageCircle className="h-3 w-3 mr-1" />
+                                    Reply
+                                  </Button>
+                                  {message.hasAttachment && (
+                                    <Button size="sm" variant="outline">
+                                      <Paperclip className="h-3 w-3 mr-1" />
+                                      Attachment
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+
+              {/* Quick Actions & Conference Requests */}
+              <div className="space-y-6">
+                {/* Conference Requests */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <CalendarDays className="h-5 w-5" />
+                        Conferences
+                      </CardTitle>
+                      <Dialog open={isConferenceDialogOpen} onOpenChange={setIsConferenceDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button size="sm" variant="outline">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Request
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-md">
+                          <DialogHeader>
+                            <DialogTitle>Request Parent Conference</DialogTitle>
+                            <DialogDescription>
+                              Schedule a meeting with your child's teacher to discuss their progress.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label>Teacher</Label>
+                              <Select
+                                value={newConferenceRequest.teacher}
+                                onValueChange={(value) =>
+                                  setNewConferenceRequest({ ...newConferenceRequest, teacher: value })
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a teacher" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {teachers.map((teacher) => (
+                                    <SelectItem key={teacher.name} value={teacher.name}>
+                                      {teacher.name} - {teacher.subject}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Reason for Meeting</Label>
+                              <Textarea
+                                placeholder="What would you like to discuss?"
+                                value={newConferenceRequest.reason}
+                                onChange={(e) =>
+                                  setNewConferenceRequest({ ...newConferenceRequest, reason: e.target.value })
+                                }
+                                rows={3}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Preferred Dates</Label>
+                              {newConferenceRequest.preferredDates.map((date, index) => (
+                                <Input
+                                  key={index}
+                                  type="date"
+                                  value={date}
+                                  onChange={(e) => {
+                                    const newDates = [...newConferenceRequest.preferredDates]
+                                    newDates[index] = e.target.value
+                                    setNewConferenceRequest({ ...newConferenceRequest, preferredDates: newDates })
+                                  }}
+                                />
+                              ))}
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Urgency</Label>
+                              <Select
+                                value={newConferenceRequest.urgency}
+                                onValueChange={(value: any) =>
+                                  setNewConferenceRequest({ ...newConferenceRequest, urgency: value })
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="low">Low - Within 2 weeks</SelectItem>
+                                  <SelectItem value="medium">Medium - Within 1 week</SelectItem>
+                                  <SelectItem value="high">High - ASAP</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsConferenceDialogOpen(false)}>
+                              Cancel
+                            </Button>
+                            <Button
+                              onClick={requestConference}
+                              disabled={!newConferenceRequest.teacher || !newConferenceRequest.reason}
+                            >
+                              <CalendarDays className="h-4 w-4 mr-2" />
+                              Request Conference
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                    <CardDescription>Scheduled and requested meetings</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {conferenceRequests.map((request) => (
+                        <div key={request.id} className="p-3 border rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium text-sm">{request.teacherName}</h4>
+                            <Badge className={`text-xs ${getStatusColor(request.status)}`}>{request.status}</Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-2">{request.reason}</p>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              {request.subject}
+                            </Badge>
+                            <Badge variant="outline" className={`text-xs ${getPriorityColor(request.urgency)}`}>
+                              {request.urgency}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Quick Communication Actions */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="h-5 w-5" />
+                      Quick Actions
+                    </CardTitle>
+                    <CardDescription>Common communication tasks</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <Button variant="outline" className="w-full justify-start bg-transparent">
+                      <Phone className="h-4 w-4 mr-2" />
+                      Call School Office
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start bg-transparent">
+                      <Video className="h-4 w-4 mr-2" />
+                      Join Virtual Meeting
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start bg-transparent">
+                      <Mail className="h-4 w-4 mr-2" />
+                      Email All Teachers
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start bg-transparent">
+                      <Download className="h-4 w-4 mr-2" />
+                      Download Reports
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start bg-transparent">
+                      <Settings className="h-4 w-4 mr-2" />
+                      Communication Settings
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+
           <TabsContent value="progress" className="space-y-6">
+            {/* ... existing code ... */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Academic Progress */}
               <Card>
@@ -284,6 +885,7 @@ export default function ParentDashboard() {
           </TabsContent>
 
           <TabsContent value="insights" className="space-y-6">
+            {/* ... existing code ... */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* AI Learning Insights */}
               <Card>
@@ -348,6 +950,16 @@ export default function ParentDashboard() {
                       </div>
                     </div>
                   </div>
+
+                  <div className="p-3 bg-muted/50 rounded-lg">
+                    <h4 className="font-medium text-sm mb-2">Recommended Study Methods</h4>
+                    <ul className="text-xs text-muted-foreground space-y-1">
+                      <li>• Use diagrams and visual aids for complex concepts</li>
+                      <li>• Incorporate hands-on experiments in science</li>
+                      <li>• Create mind maps for history and literature</li>
+                      <li>• Use color-coding for note organization</li>
+                    </ul>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -368,18 +980,14 @@ export default function ParentDashboard() {
                         <span className="font-medium">85%</span>
                       </div>
                       <Progress value={85} className="h-2" />
-                      <p className="text-xs text-muted-foreground">
-                        Responds well to diagrams, charts, and visual representations
-                      </p>
                     </div>
 
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span>Kinesthetic Learning</span>
-                        <span className="font-medium">70%</span>
+                        <span className="font-medium">65%</span>
                       </div>
-                      <Progress value={70} className="h-2" />
-                      <p className="text-xs text-muted-foreground">Benefits from hands-on activities and experiments</p>
+                      <Progress value={65} className="h-2" />
                     </div>
 
                     <div className="space-y-2">
@@ -388,18 +996,15 @@ export default function ParentDashboard() {
                         <span className="font-medium">45%</span>
                       </div>
                       <Progress value={45} className="h-2" />
-                      <p className="text-xs text-muted-foreground">Moderate preference for verbal explanations</p>
                     </div>
-                  </div>
 
-                  <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                    <h4 className="font-medium text-sm mb-2">Recommended Study Methods</h4>
-                    <ul className="text-xs text-muted-foreground space-y-1">
-                      <li>• Use mind maps and flowcharts for complex topics</li>
-                      <li>• Incorporate interactive simulations in science</li>
-                      <li>• Practice problems with visual step-by-step solutions</li>
-                      <li>• Take regular breaks during study sessions</li>
-                    </ul>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Reading/Writing</span>
+                        <span className="font-medium">70%</span>
+                      </div>
+                      <Progress value={70} className="h-2" />
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -407,273 +1012,104 @@ export default function ParentDashboard() {
           </TabsContent>
 
           <TabsContent value="alerts" className="space-y-6">
+            {/* Alerts and Notifications */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Important Alerts */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Bell className="h-5 w-5" />
-                    Important Alerts
+                    Recent Alerts
                   </CardTitle>
-                  <CardDescription>Notifications requiring your attention</CardDescription>
+                  <CardDescription>Important notifications about Alex's education</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="p-3 bg-destructive/5 border border-destructive/20 rounded-lg">
-                      <div className="flex items-start gap-3">
-                        <AlertTriangle className="h-4 w-4 text-destructive mt-0.5" />
-                        <div className="flex-1">
-                          <h4 className="font-medium text-sm">Assignment Due Tomorrow</h4>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Chemistry lab report is due tomorrow. Alex hasn't started yet.
-                          </p>
-                          <div className="flex gap-2 mt-2">
-                            <Button size="sm" variant="outline">
-                              Send Reminder
-                            </Button>
-                            <Button size="sm" variant="outline">
-                              Contact Teacher
-                            </Button>
-                          </div>
-                        </div>
+                <CardContent className="space-y-3">
+                  <div className="p-3 bg-destructive/5 border border-destructive/20 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <Bell className="h-4 w-4 text-destructive mt-0.5" />
+                      <div className="flex-1">
+                        <h4 className="font-medium text-sm">Assignment Due Tomorrow</h4>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Chemistry lab report needs to be submitted by 11:59 PM tomorrow.
+                        </p>
+                        <span className="text-xs text-destructive">High Priority</span>
                       </div>
                     </div>
+                  </div>
 
-                    <div className="p-3 bg-secondary/5 border border-secondary/20 rounded-lg">
-                      <div className="flex items-start gap-3">
-                        <Bell className="h-4 w-4 text-secondary mt-0.5" />
-                        <div className="flex-1">
-                          <h4 className="font-medium text-sm">Parent Conference Scheduled</h4>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Virtual meeting with Mrs. Wilson scheduled for next Tuesday at 3:00 PM.
-                          </p>
-                          <div className="flex gap-2 mt-2">
-                            <Button size="sm" variant="outline">
-                              Add to Calendar
-                            </Button>
-                            <Button size="sm" variant="outline">
-                              View Details
-                            </Button>
-                          </div>
-                        </div>
+                  <div className="p-3 bg-secondary/5 border border-secondary/20 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <Calendar className="h-4 w-4 text-secondary mt-0.5" />
+                      <div className="flex-1">
+                        <h4 className="font-medium text-sm">Parent Conference Scheduled</h4>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Meeting with Mrs. Wilson scheduled for January 18th at 3:00 PM.
+                        </p>
+                        <span className="text-xs text-secondary">Scheduled</span>
                       </div>
                     </div>
+                  </div>
 
-                    <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                      <div className="flex items-start gap-3">
-                        <CheckCircle className="h-4 w-4 text-primary mt-0.5" />
-                        <div className="flex-1">
-                          <h4 className="font-medium text-sm">Excellent Progress in Math</h4>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Alex scored in the top 10% of the class on the recent algebra test. Great work!
-                          </p>
-                          <Badge variant="secondary" className="mt-2">
-                            Achievement
-                          </Badge>
-                        </div>
+                  <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <TrendingUp className="h-4 w-4 text-primary mt-0.5" />
+                      <div className="flex-1">
+                        <h4 className="font-medium text-sm">Grade Improvement</h4>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Alex's math grade has improved from B+ to A- this quarter.
+                        </p>
+                        <span className="text-xs text-primary">Good News</span>
                       </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* System Updates */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Clock className="h-5 w-5" />
-                    Recent Updates
+                    <Heart className="h-5 w-5" />
+                    Wellness Updates
                   </CardTitle>
-                  <CardDescription>Latest activity and system notifications</CardDescription>
+                  <CardDescription>Alex's mental health and wellness insights</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3 p-3 border rounded-lg">
-                      <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
+                <CardContent className="space-y-3">
+                  <div className="p-3 bg-chart-1 border border-primary/20 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <Heart className="h-4 w-4 text-primary mt-0.5" />
                       <div className="flex-1">
-                        <h4 className="font-medium text-sm">Grade Updated</h4>
-                        <p className="text-xs text-muted-foreground">
-                          History essay grade posted: A- (88%). Great improvement in writing structure.
-                        </p>
-                        <span className="text-xs text-muted-foreground">2 hours ago</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-3 p-3 border rounded-lg">
-                      <div className="w-2 h-2 bg-secondary rounded-full mt-2"></div>
-                      <div className="flex-1">
-                        <h4 className="font-medium text-sm">New Assignment Posted</h4>
-                        <p className="text-xs text-muted-foreground">
-                          Chemistry: Molecular structure worksheet assigned. Due Friday.
-                        </p>
-                        <span className="text-xs text-muted-foreground">1 day ago</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-3 p-3 border rounded-lg">
-                      <div className="w-2 h-2 bg-chart-2 rounded-full mt-2"></div>
-                      <div className="flex-1">
-                        <h4 className="font-medium text-sm">Attendance Update</h4>
-                        <p className="text-xs text-muted-foreground">
-                          Perfect attendance maintained for the month. Keep it up!
-                        </p>
-                        <span className="text-xs text-muted-foreground">2 days ago</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-3 p-3 border rounded-lg">
-                      <div className="w-2 h-2 bg-chart-5 rounded-full mt-2"></div>
-                      <div className="flex-1">
-                        <h4 className="font-medium text-sm">Wellness Check-in</h4>
-                        <p className="text-xs text-muted-foreground">
-                          Alex completed daily mood check-in. Feeling confident and motivated.
-                        </p>
-                        <span className="text-xs text-muted-foreground">3 days ago</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="communication" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Messages with Teachers */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5" />
-                    Messages with Teachers
-                  </CardTitle>
-                  <CardDescription>Recent communications about Alex's progress</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3 p-3 border rounded-lg">
-                      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                        <span className="text-xs font-medium text-primary">SW</span>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium text-sm">Mrs. Wilson (Math Teacher)</h4>
-                          <span className="text-xs text-muted-foreground">1h ago</span>
-                        </div>
+                        <h4 className="font-medium text-sm">Positive Wellness Trend</h4>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Alex did exceptionally well on today's quiz! His understanding of quadratic equations has
-                          really improved.
+                          Alex has been consistently using mindfulness tools and reporting improved mood.
                         </p>
-                        <Button size="sm" variant="outline" className="mt-2 bg-transparent">
-                          Reply
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-3 p-3 border rounded-lg">
-                      <div className="w-8 h-8 bg-secondary/10 rounded-full flex items-center justify-center">
-                        <span className="text-xs font-medium text-secondary">JD</span>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium text-sm">Mr. Davis (Chemistry)</h4>
-                          <span className="text-xs text-muted-foreground">2d ago</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Alex might benefit from some extra practice with balancing chemical equations. I've shared
-                          some resources.
-                        </p>
-                        <Button size="sm" variant="outline" className="mt-2 bg-transparent">
-                          Reply
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-3 p-3 border rounded-lg">
-                      <div className="w-8 h-8 bg-chart-1 rounded-full flex items-center justify-center">
-                        <span className="text-xs font-medium text-primary">LM</span>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium text-sm">Ms. Martinez (History)</h4>
-                          <span className="text-xs text-muted-foreground">3d ago</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Great job on the World War II project! Alex's research was thorough and well-presented.
-                        </p>
-                        <Button size="sm" variant="outline" className="mt-2 bg-transparent">
-                          Reply
-                        </Button>
+                        <span className="text-xs text-primary">7-day streak</span>
                       </div>
                     </div>
                   </div>
 
-                  <Button className="w-full">
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    Start New Conversation
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Quick Actions */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Target className="h-5 w-5" />
-                    Quick Actions
-                  </CardTitle>
-                  <CardDescription>Common tasks and helpful resources</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 gap-3">
-                    <Button variant="outline" className="justify-start h-auto p-4 bg-transparent">
-                      <div className="flex items-center gap-3">
-                        <Calendar className="h-5 w-5 text-primary" />
-                        <div className="text-left">
-                          <div className="font-medium">Schedule Parent Conference</div>
-                          <div className="text-xs text-muted-foreground">Meet with Alex's teachers</div>
-                        </div>
+                  <div className="p-3 bg-secondary/5 border border-secondary/20 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <Clock className="h-4 w-4 text-secondary mt-0.5" />
+                      <div className="flex-1">
+                        <h4 className="font-medium text-sm">Sleep Pattern Improvement</h4>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Better sleep schedule has correlated with improved academic performance.
+                        </p>
+                        <span className="text-xs text-secondary">Positive Impact</span>
                       </div>
-                    </Button>
+                    </div>
+                  </div>
 
-                    <Button variant="outline" className="justify-start h-auto p-4 bg-transparent">
-                      <div className="flex items-center gap-3">
-                        <BarChart3 className="h-5 w-5 text-secondary" />
-                        <div className="text-left">
-                          <div className="font-medium">Download Progress Report</div>
-                          <div className="text-xs text-muted-foreground">Detailed academic summary</div>
-                        </div>
+                  <div className="p-3 bg-chart-5 border border-secondary/20 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <Target className="h-4 w-4 text-secondary mt-0.5" />
+                      <div className="flex-1">
+                        <h4 className="font-medium text-sm">Stress Management</h4>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Alex is effectively using breathing exercises during high-stress periods.
+                        </p>
+                        <span className="text-xs text-secondary">Coping Well</span>
                       </div>
-                    </Button>
-
-                    <Button variant="outline" className="justify-start h-auto p-4 bg-transparent">
-                      <div className="flex items-center gap-3">
-                        <Bell className="h-5 w-5 text-primary" />
-                        <div className="text-left">
-                          <div className="font-medium">Notification Settings</div>
-                          <div className="text-xs text-muted-foreground">Customize alerts and updates</div>
-                        </div>
-                      </div>
-                    </Button>
-
-                    <Button variant="outline" className="justify-start h-auto p-4 bg-transparent">
-                      <div className="flex items-center gap-3">
-                        <BookOpen className="h-5 w-5 text-secondary" />
-                        <div className="text-left">
-                          <div className="font-medium">Learning Resources</div>
-                          <div className="text-xs text-muted-foreground">Study guides and materials</div>
-                        </div>
-                      </div>
-                    </Button>
-
-                    <Button variant="outline" className="justify-start h-auto p-4 bg-transparent">
-                      <div className="flex items-center gap-3">
-                        <Heart className="h-5 w-5 text-primary" />
-                        <div className="text-left">
-                          <div className="font-medium">Wellness Support</div>
-                          <div className="text-xs text-muted-foreground">Mental health resources</div>
-                        </div>
-                      </div>
-                    </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
