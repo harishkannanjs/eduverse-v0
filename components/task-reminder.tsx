@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { getCurrentUser } from "@/lib/auth"
+import { getCurrentUser } from "@/lib/auth-client"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Bell, X, Clock } from "lucide-react"
