@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextRequest } from "next/server"
+import { getCurrentUser } from "@/lib/auth"
 
 // Mock data store representing user relationships (in production, this would be in a database)
 // This simulates the relationships between users to enforce proper access control
@@ -198,14 +199,14 @@ function canUserAccessConversation(userId: string, conversation: any): boolean {
   // For parents: can see conversations about their children
   if (user.role === "parent") {
     return conversation.relatedStudents?.some((studentId: string) => 
-      user.children?.includes(studentId)
+      (user as any).children?.includes(studentId)
     ) || false
   }
 
   // For teachers: can see conversations about their students
   if (user.role === "teacher") {
     return conversation.relatedStudents?.some((studentId: string) => 
-      user.students?.includes(studentId)
+      (user as any).students?.includes(studentId)
     ) || false
   }
 
@@ -217,28 +218,35 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const conversationId = searchParams.get('conversationId')
-    const userId = searchParams.get('userId')
+    const clientUserId = searchParams.get('userId')
+    
+    // Server-side authentication: Get the actual authenticated user
+    const currentUser = await getCurrentUser()
+    if (!currentUser) {
+      return Response.json({ error: "Authentication required" }, { status: 401 })
+    }
+    
+    // Verify the client-supplied userId matches the authenticated user (prevent impersonation)
+    if (clientUserId && clientUserId !== currentUser.id) {
+      return Response.json({ error: "User ID mismatch" }, { status: 403 })
+    }
+    
+    const userId = currentUser.id // Use server-validated user ID
     
     if (conversationId) {
       // Get messages for a specific conversation (check access first)
-      if (userId) {
-        const conversation = conversations.find(conv => conv.id === conversationId)
-        if (!conversation || !canUserAccessConversation(userId, conversation)) {
-          return Response.json({ error: "Access denied" }, { status: 403 })
-        }
+      const conversation = conversations.find(conv => conv.id === conversationId)
+      if (!conversation || !canUserAccessConversation(userId, conversation)) {
+        return Response.json({ error: "Access denied" }, { status: 403 })
       }
       
       const conversationMessages = messages.filter(msg => msg.conversationId === conversationId)
       return Response.json({ messages: conversationMessages })
     } else {
       // Get all conversations - filter by user access rights
-      let filteredConversations = conversations
-      
-      if (userId) {
-        filteredConversations = conversations.filter(conv => 
-          canUserAccessConversation(userId, conv)
-        )
-      }
+      const filteredConversations = conversations.filter(conv => 
+        canUserAccessConversation(userId, conv)
+      )
       
       return Response.json({ conversations: filteredConversations })
     }
@@ -251,11 +259,22 @@ export async function GET(request: NextRequest) {
 // Send a new message
 export async function POST(request: NextRequest) {
   try {
-    const { conversationId, content, senderId, senderName, senderRole } = await request.json()
+    const { conversationId, content } = await request.json()
     
-    if (!conversationId || !content || !senderId) {
+    if (!conversationId || !content) {
       return Response.json({ error: "Missing required fields" }, { status: 400 })
     }
+
+    // Server-side authentication: Get the actual authenticated user
+    const currentUser = await getCurrentUser()
+    if (!currentUser) {
+      return Response.json({ error: "Authentication required" }, { status: 401 })
+    }
+
+    // Use authenticated user data instead of trusting client-supplied sender data
+    const senderId = currentUser.id
+    const senderName = currentUser.name
+    const senderRole = currentUser.role
 
     // Check if user can access this conversation
     const conversation = conversations.find(conv => conv.id === conversationId)
@@ -269,9 +288,9 @@ export async function POST(request: NextRequest) {
       conversationId,
       sender: {
         id: senderId,
-        name: senderName || "Anonymous User",
-        role: senderRole || "student",
-        avatar: `/${senderRole || "student"}-avatar.png`
+        name: senderName,
+        role: senderRole,
+        avatar: `/${senderRole}-avatar.png`
       },
       content: content.trim(),
       timestamp: new Date().toISOString(),

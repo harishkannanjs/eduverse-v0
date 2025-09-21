@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Send, Bot, User } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 
 interface Message {
   id: string
@@ -22,6 +22,15 @@ export function AIChat({ className }: AIChatProps) {
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Auto-scroll to bottom when new messages are added
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages, isLoading])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -83,8 +92,8 @@ export function AIChat({ className }: AIChatProps) {
           <Bot className="h-6 w-6" />
         </Button>
       ) : (
-        <Card className="fixed bottom-4 right-4 w-80 h-96 shadow-lg">
-          <CardHeader className="pb-3">
+        <Card className="fixed bottom-4 right-4 w-80 h-[500px] shadow-lg flex flex-col">
+          <CardHeader className="pb-3 flex-shrink-0">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Bot className="h-5 w-5" />
@@ -95,8 +104,8 @@ export function AIChat({ className }: AIChatProps) {
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="p-0 flex flex-col h-full">
-            <ScrollArea className="flex-1 p-4">
+          <CardContent className="p-0 flex flex-col flex-1 overflow-hidden">
+            <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
               <div className="space-y-4">
                 {messages.length === 0 && (
                   <div className="text-center text-muted-foreground text-sm">
@@ -119,7 +128,7 @@ export function AIChat({ className }: AIChatProps) {
                         )}
                       </div>
                       <div
-                        className={`rounded-lg p-3 text-sm ${
+                        className={`rounded-lg p-3 text-sm break-words ${
                           message.role === "user"
                             ? "bg-primary text-primary-foreground"
                             : "bg-secondary text-secondary-foreground"
@@ -150,9 +159,10 @@ export function AIChat({ className }: AIChatProps) {
                     </div>
                   </div>
                 )}
+                <div ref={messagesEndRef} />
               </div>
             </ScrollArea>
-            <div className="p-4 border-t">
+            <div className="p-4 border-t flex-shrink-0">
               <form onSubmit={handleSubmit} className="flex gap-2">
                 <Input
                   value={input}
@@ -160,8 +170,9 @@ export function AIChat({ className }: AIChatProps) {
                   placeholder="Ask me anything..."
                   disabled={isLoading}
                   className="flex-1"
+                  maxLength={500}
                 />
-                <Button type="submit" disabled={isLoading} size="icon">
+                <Button type="submit" disabled={isLoading || !input.trim()} size="icon">
                   <Send className="h-4 w-4" />
                 </Button>
               </form>

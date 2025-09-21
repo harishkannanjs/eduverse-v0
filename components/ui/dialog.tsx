@@ -30,11 +30,26 @@ const DialogContext = createContext<DialogContextType | undefined>(undefined);
 export function Dialog({
   children,
   defaultOpen = false,
+  open: controlledOpen,
+  onOpenChange,
 }: {
   children: ReactNode;
   defaultOpen?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = (newOpen: boolean) => {
+    if (isControlled) {
+      onOpenChange?.(newOpen);
+    } else {
+      setInternalOpen(newOpen);
+    }
+  };
+  
   return (
     <DialogContext.Provider value={{ open, setOpen }}>
       {children}
@@ -42,7 +57,13 @@ export function Dialog({
   );
 }
 
-export function DialogTrigger({ children }: { children: ReactElement }) {
+export function DialogTrigger({ 
+  children, 
+  asChild = false 
+}: { 
+  children: ReactElement;
+  asChild?: boolean;
+}) {
   const ctx = useContext(DialogContext);
   // If no dialog context, just render children
   if (!ctx) return children;
@@ -127,4 +148,12 @@ export function DialogTitle({ children }: { children: ReactNode }) {
 
 export function DialogDescription({ children }: { children: ReactNode }) {
   return <p style={{ marginTop: 8, color: "#666" }}>{children}</p>;
+}
+
+export function DialogHeader({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={className} style={{ marginBottom: 16 }}>{children}</div>;
+}
+
+export function DialogFooter({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={className} style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>{children}</div>;
 }

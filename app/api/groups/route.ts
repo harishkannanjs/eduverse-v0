@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server"
+import { getCurrentUser } from "@/lib/auth"
 
 // Mock groups data with proper membership management
 let groups: any[] = [
@@ -91,8 +92,21 @@ function isUserAdmin(userId: string, group: any): boolean {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
+    const clientUserId = searchParams.get('userId')
     const groupId = searchParams.get('groupId')
+    
+    // Server-side authentication: Get the actual authenticated user
+    const currentUser = await getCurrentUser()
+    if (!currentUser) {
+      return Response.json({ error: "Authentication required" }, { status: 401 })
+    }
+    
+    // Verify the client-supplied userId matches the authenticated user (prevent impersonation)
+    if (clientUserId && clientUserId !== currentUser.id) {
+      return Response.json({ error: "User ID mismatch" }, { status: 403 })
+    }
+    
+    const userId = currentUser.id // Use server-validated user ID
     
     if (groupId) {
       // Get specific group details
@@ -101,18 +115,14 @@ export async function GET(request: NextRequest) {
         return Response.json({ error: "Group not found" }, { status: 404 })
       }
       
-      if (userId && !canUserAccessGroup(userId, group)) {
+      if (!canUserAccessGroup(userId, group)) {
         return Response.json({ error: "Access denied" }, { status: 403 })
       }
       
       return Response.json({ group })
     } else {
       // Get all groups the user can access
-      let filteredGroups = groups.filter(g => g.isActive)
-      
-      if (userId) {
-        filteredGroups = filteredGroups.filter(g => canUserAccessGroup(userId, g))
-      }
+      const filteredGroups = groups.filter(g => g.isActive).filter(g => canUserAccessGroup(userId, g))
       
       return Response.json({ groups: filteredGroups })
     }
@@ -129,14 +139,26 @@ export async function POST(request: NextRequest) {
       name, 
       description, 
       subject, 
-      createdBy, 
       maxMembers = 20, 
       isPublic = true,
       meetingSchedule 
     } = await request.json()
     
-    if (!name || !description || !createdBy || !createdBy.id) {
+    if (!name || !description) {
       return Response.json({ error: "Missing required fields" }, { status: 400 })
+    }
+
+    // Server-side authentication: Get the actual authenticated user
+    const currentUser = await getCurrentUser()
+    if (!currentUser) {
+      return Response.json({ error: "Authentication required" }, { status: 401 })
+    }
+
+    // Use authenticated user data instead of trusting client-supplied createdBy
+    const createdBy = {
+      id: currentUser.id,
+      name: currentUser.name,
+      role: currentUser.role,
     }
 
     // Generate invite code for public groups
@@ -235,7 +257,7 @@ export async function PUT(request: NextRequest) {
 
       // If this was an admin leaving, handle admin transfer
       if (group.adminIds.includes(userId)) {
-        group.adminIds = group.adminIds.filter(id => id !== userId)
+        group.adminIds = group.adminIds.filter((id: string) => id !== userId)
         // If no admins left, make the creator admin again or transfer to oldest member
         if (group.adminIds.length === 0 && group.members.length > 0) {
           group.adminIds.push(group.members[0].id)

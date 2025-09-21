@@ -138,6 +138,25 @@ export const authenticateUser = async (usernameOrEmail: string, password: string
 
 export const getCurrentUser = async (): Promise<User | null> => {
   try {
+    // Check if Supabase is configured
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      // Only use demo user in development - never in production for security
+      if (process.env.NODE_ENV === 'development') {
+        console.warn("Supabase not configured, using demo user for development")
+        // Return a demo user for development
+        return {
+          id: "demo-user-id",
+          email: "demo@example.com",
+          name: "Demo User",
+          username: "demo_user",
+          role: "student",
+        }
+      } else {
+        console.error("Supabase configuration missing in production")
+        return null
+      }
+    }
+
     const supabase = createClient()
 
     const {

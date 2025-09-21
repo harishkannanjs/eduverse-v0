@@ -10,6 +10,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 import { getCurrentUser, User } from "@/lib/auth"
 import {
   MessageSquare,
@@ -59,7 +62,25 @@ export function CommunicationHub() {
   const [isLoading, setIsLoading] = useState(false)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [announcements, setAnnouncements] = useState<any[]>([])
+  const [groups, setGroups] = useState<any[]>([])
   const [loadingUser, setLoadingUser] = useState(true)
+  const [showCreateGroupDialog, setShowCreateGroupDialog] = useState(false)
+  const [showJoinGroupDialog, setShowJoinGroupDialog] = useState(false)
+  const [showCreateAnnouncementDialog, setShowCreateAnnouncementDialog] = useState(false)
+  const [joinGroupCode, setJoinGroupCode] = useState("")
+  const [newGroupForm, setNewGroupForm] = useState({
+    name: "",
+    description: "",
+    subject: "",
+    isPublic: true,
+    maxMembers: 20
+  })
+  const [newAnnouncementForm, setNewAnnouncementForm] = useState({
+    title: "",
+    content: "",
+    targetAudience: "all",
+    priority: "medium"
+  })
 
   // Load user and data on component mount
   useEffect(() => {
@@ -88,6 +109,7 @@ export function CommunicationHub() {
     if (currentUser) {
       loadConversations()
       loadAnnouncements()
+      loadGroups()
     }
   }, [currentUser])
 
@@ -135,6 +157,19 @@ export function CommunicationHub() {
     }
   }
 
+  const loadGroups = async () => {
+    if (!currentUser) return
+    try {
+      const response = await fetch(`/api/groups?userId=${currentUser.id}`)
+      const data = await response.json()
+      if (response.ok) {
+        setGroups(data.groups || [])
+      }
+    } catch (error) {
+      console.error('Error loading groups:', error)
+    }
+  }
+
   const loadMessages = async (conversationId: string) => {
     try {
       const response = await fetch(`/api/messages?conversationId=${conversationId}`)
@@ -178,6 +213,99 @@ export function CommunicationHub() {
       console.error('Error sending message:', error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const createGroup = async () => {
+    if (!newGroupForm.name || !newGroupForm.description || !currentUser) return
+    
+    try {
+      const response = await fetch('/api/groups', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...newGroupForm,
+          createdBy: {
+            id: currentUser.id,
+            name: currentUser.name,
+            role: currentUser.role,
+          }
+        }),
+      })
+
+      if (response.ok) {
+        setShowCreateGroupDialog(false)
+        setNewGroupForm({
+          name: "",
+          description: "",
+          subject: "",
+          isPublic: true,
+          maxMembers: 20
+        })
+        await loadGroups()
+      }
+    } catch (error) {
+      console.error('Error creating group:', error)
+    }
+  }
+
+  const joinGroup = async (groupId: string) => {
+    if (!currentUser) return
+    
+    try {
+      const response = await fetch('/api/groups', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: "join",
+          groupId: groupId,
+          userId: currentUser.id,
+          userName: currentUser.name,
+          userRole: currentUser.role,
+          inviteCode: joinGroupCode
+        }),
+      })
+
+      if (response.ok) {
+        await loadGroups()
+      }
+    } catch (error) {
+      console.error('Error joining group:', error)
+    }
+  }
+
+  const createAnnouncement = async () => {
+    if (!newAnnouncementForm.title || !newAnnouncementForm.content || !currentUser || currentUser.role !== "teacher") return
+    
+    try {
+      const response = await fetch('/api/announcements', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...newAnnouncementForm,
+          authorId: currentUser.id,
+          authorName: currentUser.name,
+        }),
+      })
+
+      if (response.ok) {
+        setShowCreateAnnouncementDialog(false)
+        setNewAnnouncementForm({
+          title: "",
+          content: "",
+          targetAudience: "all",
+          priority: "medium"
+        })
+        await loadAnnouncements()
+      }
+    } catch (error) {
+      console.error('Error creating announcement:', error)
     }
   }
 
@@ -426,10 +554,80 @@ export function CommunicationHub() {
                   <CardDescription>Important updates and notifications</CardDescription>
                 </div>
                 {currentUser.role === "teacher" && (
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Announcement
-                  </Button>
+                  <Dialog open={showCreateAnnouncementDialog} onOpenChange={setShowCreateAnnouncementDialog}>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Plus className="h-4 w-4 mr-2" />
+                        New Announcement
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Create New Announcement</DialogTitle>
+                        <DialogDescription>
+                          Share important updates with students and parents.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="ann-title">Title</Label>
+                          <Input
+                            id="ann-title"
+                            value={newAnnouncementForm.title}
+                            onChange={(e) => setNewAnnouncementForm({ ...newAnnouncementForm, title: e.target.value })}
+                            placeholder="Enter announcement title"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="ann-content">Content</Label>
+                          <Textarea
+                            id="ann-content"
+                            value={newAnnouncementForm.content}
+                            onChange={(e) => setNewAnnouncementForm({ ...newAnnouncementForm, content: e.target.value })}
+                            placeholder="Enter announcement details"
+                            rows={4}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="ann-audience">Target Audience</Label>
+                            <Select value={newAnnouncementForm.targetAudience} onValueChange={(value) => setNewAnnouncementForm({ ...newAnnouncementForm, targetAudience: value })}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">Everyone</SelectItem>
+                                <SelectItem value="students">Students</SelectItem>
+                                <SelectItem value="parents">Parents</SelectItem>
+                                <SelectItem value="teachers">Teachers</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="ann-priority">Priority</Label>
+                            <Select value={newAnnouncementForm.priority} onValueChange={(value) => setNewAnnouncementForm({ ...newAnnouncementForm, priority: value })}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="high">High</SelectItem>
+                                <SelectItem value="medium">Medium</SelectItem>
+                                <SelectItem value="low">Low</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowCreateAnnouncementDialog(false)}>
+                          Cancel
+                        </Button>
+                        <Button onClick={createAnnouncement} disabled={!newAnnouncementForm.title || !newAnnouncementForm.content}>
+                          Create Announcement
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 )}
               </div>
             </CardHeader>
@@ -453,7 +651,7 @@ export function CommunicationHub() {
                             <p className="text-sm text-muted-foreground mb-3">{announcement.content}</p>
                             <div className="flex items-center justify-between">
                               <span className="text-xs text-muted-foreground">
-                                By {announcement.author} • {announcement.timestamp}
+                                By {announcement.author?.name || announcement.author} • {new Date(announcement.timestamp).toLocaleDateString()}
                               </span>
                               <div className="flex gap-2">
                                 <Button size="sm" variant="outline">
@@ -483,82 +681,171 @@ export function CommunicationHub() {
                   <CardTitle>Study Groups</CardTitle>
                   <CardDescription>Collaborative learning spaces</CardDescription>
                 </div>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Group
-                </Button>
+                <div className="flex gap-2">
+                  <Dialog open={showJoinGroupDialog} onOpenChange={setShowJoinGroupDialog}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline">
+                        Join Group
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Join Group</DialogTitle>
+                        <DialogDescription>
+                          Enter an invite code to join an existing group.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="join-code">Invite Code</Label>
+                          <Input
+                            id="join-code"
+                            value={joinGroupCode}
+                            onChange={(e) => setJoinGroupCode(e.target.value.toUpperCase())}
+                            placeholder="Enter 8-character invite code"
+                            maxLength={8}
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowJoinGroupDialog(false)}>
+                          Cancel
+                        </Button>
+                        <Button onClick={() => {
+                          // Find group by invite code
+                          const group = groups.find(g => g.inviteCode === joinGroupCode)
+                          if (group) {
+                            joinGroup(group.id)
+                            setShowJoinGroupDialog(false)
+                            setJoinGroupCode("")
+                          }
+                        }} disabled={!joinGroupCode.trim()}>
+                          Join Group
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                  <Dialog open={showCreateGroupDialog} onOpenChange={setShowCreateGroupDialog}>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Group
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Create New Study Group</DialogTitle>
+                        <DialogDescription>
+                          Create a collaborative learning space for students and teachers.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="group-name">Group Name</Label>
+                          <Input
+                            id="group-name"
+                            value={newGroupForm.name}
+                            onChange={(e) => setNewGroupForm({ ...newGroupForm, name: e.target.value })}
+                            placeholder="Enter group name"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="group-desc">Description</Label>
+                          <Textarea
+                            id="group-desc"
+                            value={newGroupForm.description}
+                            onChange={(e) => setNewGroupForm({ ...newGroupForm, description: e.target.value })}
+                            placeholder="Describe the group's purpose"
+                            rows={3}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="group-subject">Subject</Label>
+                            <Input
+                              id="group-subject"
+                              value={newGroupForm.subject}
+                              onChange={(e) => setNewGroupForm({ ...newGroupForm, subject: e.target.value })}
+                              placeholder="e.g., Mathematics"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="group-max">Max Members</Label>
+                            <Input
+                              id="group-max"
+                              type="number"
+                              min="5"
+                              max="50"
+                              value={newGroupForm.maxMembers}
+                              onChange={(e) => setNewGroupForm({ ...newGroupForm, maxMembers: parseInt(e.target.value) || 20 })}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowCreateGroupDialog(false)}>
+                          Cancel
+                        </Button>
+                        <Button onClick={createGroup} disabled={!newGroupForm.name || !newGroupForm.description}>
+                          Create Group
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 bg-primary/10 rounded-lg">
-                        <Users className="h-5 w-5 text-primary" />
+                {groups.map((group) => (
+                  <Card key={group.id}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="p-2 bg-primary/10 rounded-lg">
+                          <Users className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium">{group.name}</h4>
+                          <p className="text-sm text-muted-foreground">{group.currentMembers} members</p>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-medium">Chemistry Champions</h4>
-                        <p className="text-sm text-muted-foreground">12 members</p>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {group.description}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <Badge variant={group.isActive ? "secondary" : "outline"}>
+                          {group.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                        <div className="flex gap-2">
+                          {group.inviteCode && (
+                            <Badge variant="outline" className="text-xs">
+                              Code: {group.inviteCode}
+                            </Badge>
+                          )}
+                          {!group.members.some((m: any) => m.id === currentUser.id) ? (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => joinGroup(group.id)}
+                              disabled={group.currentMembers >= group.maxMembers}
+                            >
+                              {group.currentMembers >= group.maxMembers ? "Full" : "Join"}
+                            </Button>
+                          ) : (
+                            <Badge variant="secondary">Joined</Badge>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Study group for advanced chemistry topics and lab work preparation.
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <Badge variant="secondary">Active</Badge>
-                      <Button size="sm" variant="outline">
-                        Join
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 bg-secondary/10 rounded-lg">
-                        <Users className="h-5 w-5 text-secondary" />
-                      </div>
-                      <div>
-                        <h4 className="font-medium">Math Masters</h4>
-                        <p className="text-sm text-muted-foreground">8 members</p>
-                      </div>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Collaborative problem-solving for algebra and pre-calculus students.
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <Badge variant="secondary">Active</Badge>
-                      <Button size="sm" variant="outline">
-                        Join
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 bg-chart-1 rounded-lg">
-                        <Users className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <h4 className="font-medium">History Buffs</h4>
-                        <p className="text-sm text-muted-foreground">15 members</p>
-                      </div>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Discussion group for world history topics and research projects.
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <Badge variant="outline">Recruiting</Badge>
-                      <Button size="sm" variant="outline">
-                        Join
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                ))}
+                {groups.length === 0 && (
+                  <div className="col-span-full text-center py-8 text-muted-foreground">
+                    <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No study groups available</p>
+                    <p className="text-sm">Create a new group to get started</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

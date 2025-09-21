@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server"
+import { getCurrentUser } from "@/lib/auth"
 
 // Mock announcements data with proper role-based access control
 let announcements: any[] = [
@@ -79,17 +80,17 @@ function getAnnouncementsForRole(role: string): any[] {
   })
 }
 
-// Get announcements for a specific role
+// Get announcements for authenticated user's role
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const role = searchParams.get('role')
-    
-    if (!role) {
-      return Response.json({ error: "Role parameter is required" }, { status: 400 })
+    // Server-side authentication: Get the actual authenticated user
+    const currentUser = await getCurrentUser()
+    if (!currentUser) {
+      return Response.json({ error: "Authentication required" }, { status: 401 })
     }
 
-    const filteredAnnouncements = getAnnouncementsForRole(role)
+    // Use the authenticated user's role instead of trusting client-supplied role
+    const filteredAnnouncements = getAnnouncementsForRole(currentUser.role)
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()) // Sort by newest first
     
     return Response.json({ announcements: filteredAnnouncements })
@@ -108,9 +109,16 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    // Verify the author is a teacher (in a real app, this would be validated from the session)
-    // For now, we'll check based on the authorId pattern or assume it's validated
-    // In production, you would get the user's role from the authenticated session
+    // Server-side authorization: Only teachers can create announcements
+    const currentUser = await getCurrentUser()
+    if (!currentUser || currentUser.role !== "teacher") {
+      return Response.json({ error: "Only teachers can create announcements" }, { status: 403 })
+    }
+
+    // Verify the authorId matches the current user (prevent impersonation)
+    if (currentUser.id !== authorId) {
+      return Response.json({ error: "Author ID mismatch - cannot impersonate other users" }, { status: 403 })
+    }
     
     const validTargetAudiences = ["all", "students", "teachers", "parents"]
     if (!validTargetAudiences.includes(targetAudience)) {

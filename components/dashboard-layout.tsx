@@ -11,6 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { getCurrentUser, logout, type User } from "@/lib/auth"
 import { LogOut, Settings, UserIcon, MessageSquare, Brain, Calendar, Heart, Shield } from "lucide-react"
 import { AIChat } from "@/components/ai-chat"
+import { TaskReminder } from "@/components/task-reminder"
 import Link from "next/link"
 
 interface DashboardLayoutProps {
@@ -133,6 +134,9 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
 
       {/* AI Chat - Available on all dashboards */}
       <AIChat />
+      
+      {/* Task Reminder notifications */}
+      <TaskReminder />
     </div>
   )
-    }
+}
