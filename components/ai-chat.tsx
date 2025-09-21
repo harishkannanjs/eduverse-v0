@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
-import { Send, Bot, User, Minimize2, Maximize2, RotateCcw, Copy, Check, ArrowUp, ArrowDown } from "lucide-react"
+import { Send, Bot, User, Minimize2, Maximize2, RotateCcw, Copy, Check, ArrowUp, ArrowDown, X } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
 
 interface Message {
@@ -195,17 +195,17 @@ export function AIChat({ className }: AIChatProps) {
   return (
     <div className={className}>
       {!isOpen ? (
-        <div className="fixed bottom-4 right-4">
+        <div className="fixed bottom-6 right-6 z-40">
           <Button
             onClick={openChat}
-            className="rounded-full w-14 h-14 shadow-lg hover:shadow-xl transition-all duration-200 relative"
+            className="rounded-full w-12 h-12 shadow-lg hover:shadow-xl transition-all duration-200 relative bg-primary hover:bg-primary/90"
             size="icon"
           >
-            <Bot className="h-7 w-7" />
+            <Bot className="h-6 w-6" />
             {unreadCount > 0 && (
               <Badge
                 variant="destructive"
-                className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0 flex items-center justify-center text-xs font-bold"
+                className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs font-bold"
               >
                 {unreadCount > 9 ? "9+" : unreadCount}
               </Badge>
@@ -214,18 +214,18 @@ export function AIChat({ className }: AIChatProps) {
         </div>
       ) : (
         <Card
-          className={`fixed bottom-4 right-4 shadow-xl border-2 flex flex-col transition-all duration-200 ${
-            isMinimized ? "w-80 h-16" : "w-80 sm:w-96 h-[500px] sm:h-[600px]"
+          className={`fixed bottom-6 right-6 shadow-2xl border-2 flex flex-col transition-all duration-300 z-40 ${
+            isMinimized ? "w-72 h-14" : "w-72 sm:w-80 h-[420px] sm:h-[480px]"
           }`}
         >
-          <CardHeader className="pb-3 flex-shrink-0 border-b">
+          <CardHeader className="pb-2 flex-shrink-0 border-b bg-gradient-to-r from-primary/5 to-secondary/5">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Bot className="h-5 w-5 text-primary" />
+              <CardTitle className="text-base flex items-center gap-2">
+                <Bot className="h-4 w-4 text-primary" />
                 AI Tutor
                 {messages.length > 0 && (
-                  <Badge variant="secondary" className="text-xs">
-                    {messages.length} messages
+                  <Badge variant="secondary" className="text-xs px-2 py-0.5">
+                    {messages.length}
                   </Badge>
                 )}
               </CardTitle>
@@ -234,19 +234,19 @@ export function AIChat({ className }: AIChatProps) {
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsMinimized(!isMinimized)}
-                  className="h-8 w-8 p-0 hover:bg-muted"
+                  className="h-7 w-7 p-0 hover:bg-muted rounded-md"
                   title={isMinimized ? "Maximize" : "Minimize"}
                 >
-                  {isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+                  {isMinimized ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsOpen(false)}
-                  className="h-8 w-8 p-0 hover:bg-muted"
+                  className="h-7 w-7 p-0 hover:bg-muted hover:text-destructive rounded-md"
                   title="Close"
                 >
-                  ×
+                  <X className="h-3.5 w-3.5" />
                 </Button>
               </div>
             </div>
@@ -256,37 +256,37 @@ export function AIChat({ className }: AIChatProps) {
             <CardContent className="p-0 flex flex-col flex-1 overflow-hidden">
               <div className="relative flex-1 overflow-hidden">
                 <ScrollArea className="h-full" ref={scrollAreaRef}>
-                  <div className="p-4 space-y-4 min-h-full" ref={messagesContainerRef}>
+                  <div className="p-3 space-y-3 min-h-full" ref={messagesContainerRef}>
                     {messages.length === 0 && (
-                      <div className="text-center text-muted-foreground text-sm py-8">
-                        <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p className="font-medium mb-2">Hi! I'm your AI tutor.</p>
-                        <p>Ask me anything about your studies, homework, or learning strategies!</p>
+                      <div className="text-center text-muted-foreground text-sm py-6">
+                        <Bot className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                        <p className="font-medium mb-1 text-sm">Hi! I'm your AI tutor.</p>
+                        <p className="text-xs">Ask me anything about your studies!</p>
                       </div>
                     )}
 
                     {messages.map((message: Message) => (
                       <div
                         key={message.id}
-                        className={`flex gap-3 group ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                        className={`flex gap-2 group ${message.role === "user" ? "justify-end" : "justify-start"}`}
                       >
                         <div
-                          className={`flex gap-3 max-w-[85%] ${message.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+                          className={`flex gap-2 max-w-[85%] ${message.role === "user" ? "flex-row-reverse" : "flex-row"}`}
                         >
                           <div className="flex-shrink-0 mt-1">
                             {message.role === "user" ? (
-                              <div className="h-8 w-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center">
-                                <User className="h-4 w-4" />
+                              <div className="h-6 w-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center">
+                                <User className="h-3 w-3" />
                               </div>
                             ) : (
-                              <div className="h-8 w-8 bg-secondary text-secondary-foreground rounded-full flex items-center justify-center">
-                                <Bot className="h-4 w-4" />
+                              <div className="h-6 w-6 bg-secondary text-secondary-foreground rounded-full flex items-center justify-center">
+                                <Bot className="h-3 w-3" />
                               </div>
                             )}
                           </div>
                           <div className="flex flex-col gap-1">
                             <div
-                              className={`rounded-lg p-3 text-sm break-words relative ${
+                              className={`rounded-lg p-2.5 text-xs break-words relative ${
                                 message.role === "user"
                                   ? "bg-primary text-primary-foreground"
                                   : "bg-muted text-muted-foreground"
@@ -296,7 +296,7 @@ export function AIChat({ className }: AIChatProps) {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className={`absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity ${
+                                className={`absolute top-0.5 right-0.5 h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity ${
                                   message.role === "user"
                                     ? "hover:bg-primary-foreground/20 text-primary-foreground"
                                     : "hover:bg-muted-foreground/20"
@@ -305,9 +305,9 @@ export function AIChat({ className }: AIChatProps) {
                                 title="Copy message"
                               >
                                 {copiedMessageId === message.id ? (
-                                  <Check className="h-3 w-3" />
+                                  <Check className="h-2.5 w-2.5" />
                                 ) : (
-                                  <Copy className="h-3 w-3" />
+                                  <Copy className="h-2.5 w-2.5" />
                                 )}
                               </Button>
                             </div>
@@ -324,20 +324,20 @@ export function AIChat({ className }: AIChatProps) {
                     ))}
 
                     {isLoading && (
-                      <div className="flex gap-3 justify-start">
-                        <div className="flex gap-3 max-w-[85%]">
-                          <div className="h-8 w-8 bg-secondary text-secondary-foreground rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                            <Bot className="h-4 w-4" />
+                      <div className="flex gap-2 justify-start">
+                        <div className="flex gap-2 max-w-[85%]">
+                          <div className="h-6 w-6 bg-secondary text-secondary-foreground rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                            <Bot className="h-3 w-3" />
                           </div>
-                          <div className="rounded-lg p-3 text-sm bg-muted">
+                          <div className="rounded-lg p-2.5 text-xs bg-muted">
                             <div className="flex space-x-1">
-                              <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"></div>
+                              <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce"></div>
                               <div
-                                className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
+                                className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce"
                                 style={{ animationDelay: "0.1s" }}
                               ></div>
                               <div
-                                className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
+                                className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce"
                                 style={{ animationDelay: "0.2s" }}
                               ></div>
                             </div>
@@ -350,41 +350,41 @@ export function AIChat({ className }: AIChatProps) {
                 </ScrollArea>
 
                 {showScrollButtons && (
-                  <div className="absolute right-2 top-2 flex flex-col gap-1">
+                  <div className="absolute right-1 top-1 flex flex-col gap-1">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 w-8 p-0 bg-background/80 backdrop-blur-sm"
+                      className="h-6 w-6 p-0 bg-background/90 backdrop-blur-sm"
                       onClick={scrollToTop}
                       title="Scroll to top"
                     >
-                      <ArrowUp className="h-3 w-3" />
+                      <ArrowUp className="h-2.5 w-2.5" />
                     </Button>
                     {!isAtBottom && (
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-8 w-8 p-0 bg-background/80 backdrop-blur-sm"
+                        className="h-6 w-6 p-0 bg-background/90 backdrop-blur-sm"
                         onClick={scrollToBottom}
                         title="Scroll to bottom"
                       >
-                        <ArrowDown className="h-3 w-3" />
+                        <ArrowDown className="h-2.5 w-2.5" />
                       </Button>
                     )}
                   </div>
                 )}
               </div>
 
-              <div className="p-4 border-t flex-shrink-0 bg-background">
+              <div className="p-3 border-t flex-shrink-0 bg-background">
                 {messages.length > 0 && (
-                  <div className="flex justify-between items-center mb-3">
+                  <div className="flex justify-center mb-2">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={clearChat}
-                      className="text-muted-foreground hover:text-destructive"
+                      className="text-muted-foreground hover:text-destructive text-xs h-6"
                     >
-                      <RotateCcw className="h-4 w-4 mr-2" />
+                      <RotateCcw className="h-3 w-3 mr-1" />
                       Clear Chat
                     </Button>
                   </div>
@@ -395,14 +395,19 @@ export function AIChat({ className }: AIChatProps) {
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="Ask me anything..."
                     disabled={isLoading}
-                    className="flex-1"
+                    className="flex-1 text-sm h-8"
                     maxLength={1000}
                   />
-                  <Button type="submit" disabled={isLoading || !input.trim()} size="icon" className="flex-shrink-0">
-                    <Send className="h-4 w-4" />
+                  <Button
+                    type="submit"
+                    disabled={isLoading || !input.trim()}
+                    size="sm"
+                    className="flex-shrink-0 h-8 w-8 p-0"
+                  >
+                    <Send className="h-3 w-3" />
                   </Button>
                 </form>
-                <div className="text-xs text-muted-foreground mt-2 text-center">{input.length}/1000 characters</div>
+                <div className="text-xs text-muted-foreground mt-1 text-center">{input.length}/1000</div>
               </div>
             </CardContent>
           )}
