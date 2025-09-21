@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { getCurrentUser } from "@/lib/auth"
+import { getCurrentUser } from "@/lib/auth-client"
 import { useToast } from "@/hooks/use-toast"
 import { Bell, Calendar, Clock, AlertTriangle } from "lucide-react"
 
