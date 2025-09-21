@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-import { getCurrentUser, type User } from "@/lib/auth"
+import { getCurrentUser, type User } from "@/lib/auth-client"
 import {
   Dialog,
   DialogContent,
