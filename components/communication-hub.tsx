@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,10 +10,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { getCurrentUser, type User } from "@/lib/auth"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { getCurrentUser, User } from "@/lib/auth"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   MessageSquare,
   Send,
@@ -73,59 +81,22 @@ export function CommunicationHub() {
     description: "",
     subject: "",
     isPublic: true,
-    maxMembers: 20
+    maxMembers: 20,
   })
   const [newAnnouncementForm, setNewAnnouncementForm] = useState({
     title: "",
     content: "",
     targetAudience: "all",
-    priority: "medium"
+    priority: "medium",
   })
 
   // Load user and data on component mount
-  useEffect(() => {
-    loadCurrentUser()
-  }, [])
-
-  if (loadingUser) {
-    return <div className="h-[calc(100vh-8rem)] flex items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-        <p>Loading your communication hub...</p>
-      </div>
-    </div>
-  }
-
-  if (!currentUser) {
-    return <div className="h-[calc(100vh-8rem)] flex items-center justify-center">
-      <div className="text-center">
-        <p className="text-destructive">Unable to load user information. Please try refreshing the page.</p>
-      </div>
-    </div>
-  }
-
-  // Load conversations when user is loaded
-  useEffect(() => {
-    if (currentUser) {
-      loadConversations()
-      loadAnnouncements()
-      loadGroups()
-    }
-  }, [currentUser])
-
-  // Load messages when a conversation is selected
-  useEffect(() => {
-    if (selectedConversation && currentUser) {
-      loadMessages(selectedConversation)
-    }
-  }, [selectedConversation, currentUser])
-
   const loadCurrentUser = async () => {
     try {
       const user = await getCurrentUser()
       setCurrentUser(user)
     } catch (error) {
-      console.error('Error loading current user:', error)
+      console.error("Error loading current user:", error)
     } finally {
       setLoadingUser(false)
     }
@@ -140,20 +111,20 @@ export function CommunicationHub() {
         setConversations(data.conversations || [])
       }
     } catch (error) {
-      console.error('Error loading conversations:', error)
+      console.error("Error loading conversations:", error)
     }
   }
 
   const loadAnnouncements = async () => {
     if (!currentUser) return
     try {
-      const response = await fetch(`/api/announcements?role=${currentUser.role}`)
+      const response = await fetch(`/api/announcements`)
       const data = await response.json()
       if (response.ok) {
         setAnnouncements(data.announcements || [])
       }
     } catch (error) {
-      console.error('Error loading announcements:', error)
+      console.error("Error loading announcements:", error)
     }
   }
 
@@ -166,7 +137,7 @@ export function CommunicationHub() {
         setGroups(data.groups || [])
       }
     } catch (error) {
-      console.error('Error loading groups:', error)
+      console.error("Error loading groups:", error)
     }
   }
 
@@ -178,19 +149,19 @@ export function CommunicationHub() {
         setMessages(data.messages || [])
       }
     } catch (error) {
-      console.error('Error loading messages:', error)
+      console.error("Error loading messages:", error)
     }
   }
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation || !currentUser) return
-    
+
     setIsLoading(true)
     try {
-      const response = await fetch('/api/messages', {
-        method: 'POST',
+      const response = await fetch("/api/messages", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           conversationId: selectedConversation,
@@ -200,17 +171,17 @@ export function CommunicationHub() {
           senderRole: currentUser.role,
         }),
       })
-      
+
       const data = await response.json()
       if (response.ok) {
         setNewMessage("")
         // Add the new message to the list
-        setMessages(prev => [...prev, data.message])
+        setMessages((prev) => [...prev, data.message])
         // Refresh conversations to update last message
         await loadConversations()
       }
     } catch (error) {
-      console.error('Error sending message:', error)
+      console.error("Error sending message:", error)
     } finally {
       setIsLoading(false)
     }
@@ -218,12 +189,12 @@ export function CommunicationHub() {
 
   const createGroup = async () => {
     if (!newGroupForm.name || !newGroupForm.description || !currentUser) return
-    
+
     try {
-      const response = await fetch('/api/groups', {
-        method: 'POST',
+      const response = await fetch("/api/groups", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           ...newGroupForm,
@@ -231,7 +202,7 @@ export function CommunicationHub() {
             id: currentUser.id,
             name: currentUser.name,
             role: currentUser.role,
-          }
+          },
         }),
       })
 
@@ -242,23 +213,23 @@ export function CommunicationHub() {
           description: "",
           subject: "",
           isPublic: true,
-          maxMembers: 20
+          maxMembers: 20,
         })
         await loadGroups()
       }
     } catch (error) {
-      console.error('Error creating group:', error)
+      console.error("Error creating group:", error)
     }
   }
 
   const joinGroup = async (groupId: string) => {
     if (!currentUser) return
-    
+
     try {
-      const response = await fetch('/api/groups', {
-        method: 'PUT',
+      const response = await fetch("/api/groups", {
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           action: "join",
@@ -266,26 +237,58 @@ export function CommunicationHub() {
           userId: currentUser.id,
           userName: currentUser.name,
           userRole: currentUser.role,
-          inviteCode: joinGroupCode
+          inviteCode: joinGroupCode,
         }),
       })
 
+      const data = await response.json()
       if (response.ok) {
+        setJoinGroupCode("")
+        setShowJoinGroupDialog(false)
         await loadGroups()
+      } else {
+        console.error("Error joining group:", data.error)
+        alert(data.error || "Failed to join group")
       }
     } catch (error) {
-      console.error('Error joining group:', error)
+      console.error("Error joining group:", error)
+      alert("Failed to join group. Please try again.")
+    }
+  }
+
+  const joinGroupByCode = async () => {
+    if (!currentUser || !joinGroupCode.trim()) return
+
+    try {
+      const group = groups.find((g) => g.inviteCode === joinGroupCode)
+      if (!group) {
+        alert("Invalid invite code. Please check and try again.")
+        return
+      }
+
+      if (group.members.some((m: any) => m.id === currentUser.id)) {
+        alert("You are already a member of this group.")
+        setJoinGroupCode("")
+        setShowJoinGroupDialog(false)
+        return
+      }
+
+      await joinGroup(group.id)
+    } catch (error) {
+      console.error("Error joining group by code:", error)
+      alert("Failed to join group. Please try again.")
     }
   }
 
   const createAnnouncement = async () => {
-    if (!newAnnouncementForm.title || !newAnnouncementForm.content || !currentUser || currentUser.role !== "teacher") return
-    
+    if (!newAnnouncementForm.title || !newAnnouncementForm.content || !currentUser || currentUser.role !== "teacher")
+      return
+
     try {
-      const response = await fetch('/api/announcements', {
-        method: 'POST',
+      const response = await fetch("/api/announcements", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           ...newAnnouncementForm,
@@ -300,12 +303,12 @@ export function CommunicationHub() {
           title: "",
           content: "",
           targetAudience: "all",
-          priority: "medium"
+          priority: "medium",
         })
         await loadAnnouncements()
       }
     } catch (error) {
-      console.error('Error creating announcement:', error)
+      console.error("Error creating announcement:", error)
     }
   }
 
@@ -333,6 +336,45 @@ export function CommunicationHub() {
       default:
         return "border-border"
     }
+  }
+
+  useEffect(() => {
+    loadCurrentUser()
+  }, [])
+
+  useEffect(() => {
+    if (currentUser) {
+      loadConversations()
+      loadAnnouncements()
+      loadGroups()
+    }
+  }, [currentUser])
+
+  useEffect(() => {
+    if (selectedConversation && currentUser) {
+      loadMessages(selectedConversation)
+    }
+  }, [selectedConversation, currentUser])
+
+  if (loadingUser) {
+    return (
+      <div className="h-[calc(100vh-8rem)] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Loading your communication hub...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="h-[calc(100vh-8rem)] flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-destructive">Unable to load user information. Please try refreshing the page.</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -564,9 +606,7 @@ export function CommunicationHub() {
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>Create New Announcement</DialogTitle>
-                        <DialogDescription>
-                          Share important updates with students and parents.
-                        </DialogDescription>
+                        <DialogDescription>Share important updates with students and parents.</DialogDescription>
                       </DialogHeader>
                       <div className="grid gap-4 py-4">
                         <div className="space-y-2">
@@ -583,7 +623,9 @@ export function CommunicationHub() {
                           <Textarea
                             id="ann-content"
                             value={newAnnouncementForm.content}
-                            onChange={(e) => setNewAnnouncementForm({ ...newAnnouncementForm, content: e.target.value })}
+                            onChange={(e) =>
+                              setNewAnnouncementForm({ ...newAnnouncementForm, content: e.target.value })
+                            }
                             placeholder="Enter announcement details"
                             rows={4}
                           />
@@ -591,7 +633,12 @@ export function CommunicationHub() {
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label htmlFor="ann-audience">Target Audience</Label>
-                            <Select value={newAnnouncementForm.targetAudience} onValueChange={(value) => setNewAnnouncementForm({ ...newAnnouncementForm, targetAudience: value })}>
+                            <Select
+                              value={newAnnouncementForm.targetAudience}
+                              onValueChange={(value) =>
+                                setNewAnnouncementForm({ ...newAnnouncementForm, targetAudience: value })
+                              }
+                            >
                               <SelectTrigger>
                                 <SelectValue />
                               </SelectTrigger>
@@ -605,7 +652,12 @@ export function CommunicationHub() {
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="ann-priority">Priority</Label>
-                            <Select value={newAnnouncementForm.priority} onValueChange={(value) => setNewAnnouncementForm({ ...newAnnouncementForm, priority: value })}>
+                            <Select
+                              value={newAnnouncementForm.priority}
+                              onValueChange={(value) =>
+                                setNewAnnouncementForm({ ...newAnnouncementForm, priority: value })
+                              }
+                            >
                               <SelectTrigger>
                                 <SelectValue />
                               </SelectTrigger>
@@ -622,7 +674,10 @@ export function CommunicationHub() {
                         <Button variant="outline" onClick={() => setShowCreateAnnouncementDialog(false)}>
                           Cancel
                         </Button>
-                        <Button onClick={createAnnouncement} disabled={!newAnnouncementForm.title || !newAnnouncementForm.content}>
+                        <Button
+                          onClick={createAnnouncement}
+                          disabled={!newAnnouncementForm.title || !newAnnouncementForm.content}
+                        >
                           Create Announcement
                         </Button>
                       </DialogFooter>
@@ -651,7 +706,8 @@ export function CommunicationHub() {
                             <p className="text-sm text-muted-foreground mb-3">{announcement.content}</p>
                             <div className="flex items-center justify-between">
                               <span className="text-xs text-muted-foreground">
-                                By {announcement.author?.name || announcement.author} • {new Date(announcement.timestamp).toLocaleDateString()}
+                                By {announcement.author?.name || announcement.author} •{" "}
+                                {new Date(announcement.timestamp).toLocaleDateString()}
                               </span>
                               <div className="flex gap-2">
                                 <Button size="sm" variant="outline">
@@ -684,16 +740,12 @@ export function CommunicationHub() {
                 <div className="flex gap-2">
                   <Dialog open={showJoinGroupDialog} onOpenChange={setShowJoinGroupDialog}>
                     <DialogTrigger asChild>
-                      <Button variant="outline">
-                        Join Group
-                      </Button>
+                      <Button variant="outline">Join Group</Button>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>Join Group</DialogTitle>
-                        <DialogDescription>
-                          Enter an invite code to join an existing group.
-                        </DialogDescription>
+                        <DialogDescription>Enter an invite code to join an existing group.</DialogDescription>
                       </DialogHeader>
                       <div className="grid gap-4 py-4">
                         <div className="space-y-2">
@@ -711,15 +763,7 @@ export function CommunicationHub() {
                         <Button variant="outline" onClick={() => setShowJoinGroupDialog(false)}>
                           Cancel
                         </Button>
-                        <Button onClick={() => {
-                          // Find group by invite code
-                          const group = groups.find(g => g.inviteCode === joinGroupCode)
-                          if (group) {
-                            joinGroup(group.id)
-                            setShowJoinGroupDialog(false)
-                            setJoinGroupCode("")
-                          }
-                        }} disabled={!joinGroupCode.trim()}>
+                        <Button onClick={joinGroupByCode} disabled={!joinGroupCode.trim()}>
                           Join Group
                         </Button>
                       </DialogFooter>
@@ -777,7 +821,9 @@ export function CommunicationHub() {
                               min="5"
                               max="50"
                               value={newGroupForm.maxMembers}
-                              onChange={(e) => setNewGroupForm({ ...newGroupForm, maxMembers: parseInt(e.target.value) || 20 })}
+                              onChange={(e) =>
+                                setNewGroupForm({ ...newGroupForm, maxMembers: Number.parseInt(e.target.value) || 20 })
+                              }
                             />
                           </div>
                         </div>
@@ -809,9 +855,7 @@ export function CommunicationHub() {
                           <p className="text-sm text-muted-foreground">{group.currentMembers} members</p>
                         </div>
                       </div>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        {group.description}
-                      </p>
+                      <p className="text-sm text-muted-foreground mb-3">{group.description}</p>
                       <div className="flex items-center justify-between">
                         <Badge variant={group.isActive ? "secondary" : "outline"}>
                           {group.isActive ? "Active" : "Inactive"}
@@ -823,10 +867,18 @@ export function CommunicationHub() {
                             </Badge>
                           )}
                           {!group.members.some((m: any) => m.id === currentUser.id) ? (
-                            <Button 
-                              size="sm" 
+                            <Button
+                              size="sm"
                               variant="outline"
-                              onClick={() => joinGroup(group.id)}
+                              onClick={() => {
+                                if (group.isPublic && group.inviteCode) {
+                                  setJoinGroupCode(group.inviteCode)
+                                  joinGroup(group.id)
+                                } else {
+                                  // For private groups, show join dialog
+                                  setShowJoinGroupDialog(true)
+                                }
+                              }}
                               disabled={group.currentMembers >= group.maxMembers}
                             >
                               {group.currentMembers >= group.maxMembers ? "Full" : "Join"}
