@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server"
-import { getCurrentUser } from "@/lib/auth"
+import { getCurrentUser } from "@/lib/auth-client"
 
 // Mock data store representing user relationships (in production, this would be in a database)
 // This simulates the relationships between users to enforce proper access control
