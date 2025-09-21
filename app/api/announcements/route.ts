@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server"
-import { getCurrentUser } from "@/lib/auth"
+import { getCurrentUser } from "@/lib/auth-client"
 
 // Mock announcements data with proper role-based access control
 const announcements: any[] = [
