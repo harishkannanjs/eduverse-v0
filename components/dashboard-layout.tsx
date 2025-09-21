@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { getCurrentUser, logout, type User } from "@/lib/auth-client"
-import { LogOut, Settings, UserIcon, MessageSquare, Brain, Calendar, Heart, Shield } from "lucide-react"
+import { LogOut, Settings, UserIcon, MessageSquare, Brain, Calendar, Heart, GraduationCap } from "lucide-react"
 import { AIChat } from "@/components/ai-chat"
 import { TaskReminder } from "@/components/task-reminder"
 import Link from "next/link"
@@ -25,12 +25,12 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
 
   useEffect(() => {
     const fetchUser = async () => {
-        const currentUser = await getCurrentUser()
-        if (!currentUser) {
-          router.push("/")
-        } else {
-          setUser(currentUser)
-        }
+      const currentUser = await getCurrentUser()
+      if (!currentUser) {
+        router.push("/")
+      } else {
+        setUser(currentUser)
+      }
     }
     fetchUser()
   }, [router])
@@ -50,7 +50,9 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href={`/${user.role}/dashboard`}><h1 className="text-2xl font-bold text-primary">EduVerse</h1></Link>
+            <Link href={`/${user.role}/dashboard`}>
+              <h1 className="text-2xl font-bold text-primary">EduVerse</h1>
+            </Link>
             <div className="h-6 w-px bg-border" />
             <h2 className="text-lg font-semibold text-foreground">{title}</h2>
           </div>
@@ -75,22 +77,26 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
               Messages
             </Button>
             <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.push("/calendar")}
-                className="flex items-center gap-2"
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push("/calendar")}
+              className="flex items-center gap-2"
             >
-                <Calendar className="h-4 w-4" />
-                Calendar
+              <Calendar className="h-4 w-4" />
+              Calendar
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => router.push("/quiz")} className="flex items-center gap-2">
+              <GraduationCap className="h-4 w-4" />
+              Quiz
             </Button>
             <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.push("/wellness")}
-                className="flex items-center gap-2"
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push("/wellness")}
+              className="flex items-center gap-2"
             >
-                <Heart className="h-4 w-4" />
-                Wellness
+              <Heart className="h-4 w-4" />
+              Wellness
             </Button>
             <span className="text-sm text-muted-foreground capitalize">{user.role} Dashboard</span>
             <DropdownMenu>
@@ -134,7 +140,7 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
 
       {/* AI Chat - Available on all dashboards */}
       <AIChat />
-      
+
       {/* Task Reminder notifications */}
       <TaskReminder />
     </div>
