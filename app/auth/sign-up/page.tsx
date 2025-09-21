@@ -29,12 +29,13 @@ export default function SignUpPage() {
     setError("")
 
     try {
-      // Pick correct redirect depending on environment
+      // pick redirect URL depending on environment (keeps previous logic)
       const redirectTo =
         process.env.NODE_ENV === "development"
           ? process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/auth/login`
           : process.env.NEXT_PUBLIC_PROD_SUPABASE_REDIRECT_URL || `${window.location.origin}/auth/login`
 
+      // Sign up the user (this will still create the user record)
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -49,23 +50,53 @@ export default function SignUpPage() {
 
       if (error) {
         setError(error.message)
+        setLoading(false)
         return
       }
 
-      if (data.user) {
-        // Create profile record
-        const { error: profileError } = await supabase.from("profiles").insert({
-          id: data.user.id,
-          email: email,
-          full_name: fullName,
-          role: role,
-        })
+      // if we got a user object, try to create profile and sign in (works when email confirmation is disabled)
+      const createdUser = (data as any)?.user
 
+      // If signUp returned a user id we proceed. If not, we still attempt a sign-in below.
+      // Create / upsert profile (id = user's id). Use upsert so it doesn't fail if already present.
+      if (createdUser?.id) {
+        const { error: profileError } = await supabase.from("profiles").upsert(
+          {
+            id: createdUser.id,
+            email,
+            full_name: fullName,
+            role,
+          },
+          { onConflict: ["id"] }
+        )
         if (profileError) {
           console.error("Profile creation error:", profileError)
         }
+      }
 
+      // Attempt to sign the user in immediately (this will succeed if email confirmation is not required)
+      try {
+        const signInResult = await supabase.auth.signInWithPassword({ email, password })
+
+        if (signInResult.error) {
+          // sign-in failed. Most likely email verification is required.
+          // Fall back to the "check your email" success UI.
+          console.warn("Automatic sign-in failed:", signInResult.error)
+          setSuccess(true)
+          setLoading(false)
+          return
+        }
+
+        // Signed in successfully, redirect to dashboard (or wherever)
+        setLoading(false)
+        router.push("/dashboard")
+        return
+      } catch (siErr) {
+        // sign-in attempt threw an error; show success fallback
+        console.error("Sign-in attempt threw error:", siErr)
         setSuccess(true)
+        setLoading(false)
+        return
       }
     } catch (err) {
       console.error(err)
