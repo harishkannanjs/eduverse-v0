@@ -3,6 +3,9 @@ import type { Metadata } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
+import { TaskReminder } from "@/components/task-reminder"
+import { CalendarNotifications } from "@/components/calendar-notifications"
+import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
 
 const inter = Inter({
@@ -30,6 +33,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={`font-sans ${inter.variable} ${jetbrainsMono.variable}`}>
         <Suspense fallback={null}>{children}</Suspense>
+        <TaskReminder />
+        <CalendarNotifications />
+        <Toaster />
         <Analytics />
       </body>
     </html>

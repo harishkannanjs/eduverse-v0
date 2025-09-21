@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client"
+import { createClient as createServerClient } from "@/lib/supabase/server"
 
 export type UserRole = "student" | "teacher" | "parent"
 
@@ -138,25 +139,6 @@ export const authenticateUser = async (usernameOrEmail: string, password: string
 
 export const getCurrentUser = async (): Promise<User | null> => {
   try {
-    // Check if Supabase is configured
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      // Only use demo user in development - never in production for security
-      if (process.env.NODE_ENV === 'development') {
-        console.warn("Supabase not configured, using demo user for development")
-        // Return a demo user for development
-        return {
-          id: "demo-user-id",
-          email: "demo@example.com",
-          name: "Demo User",
-          username: "demo_user",
-          role: "student",
-        }
-      } else {
-        console.error("Supabase configuration missing in production")
-        return null
-      }
-    }
-
     const supabase = createClient()
 
     const {
@@ -200,6 +182,51 @@ export const getCurrentUser = async (): Promise<User | null> => {
   }
 }
 
+export const getCurrentUserServer = async (): Promise<User | null> => {
+  try {
+    const supabase = await createServerClient()
+
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser()
+
+    if (error || !user) {
+      return null
+    }
+
+    // Get user profile from profiles table
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single()
+
+    if (profileError) {
+      console.error("Profile fetch error:", profileError)
+      // Return basic user info if profile doesn't exist yet
+      return {
+        id: user.id,
+        email: user.email!,
+        name: user.user_metadata?.full_name || "",
+        username: user.user_metadata?.username || "",
+        role: user.user_metadata?.role || "student",
+      }
+    }
+
+    return {
+      id: profile.id,
+      email: profile.email,
+      name: profile.full_name || "",
+      username: profile.username || "",
+      role: profile.role,
+    }
+  } catch (error) {
+    console.error("Get current user server error:", error)
+    return null
+  }
+}
+
 export const logout = async (): Promise<void> => {
   try {
     const supabase = createClient()
@@ -208,4 +235,3 @@ export const logout = async (): Promise<void> => {
     console.error("Logout error:", error)
   }
 }
-

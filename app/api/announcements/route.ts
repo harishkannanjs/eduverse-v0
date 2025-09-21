@@ -1,8 +1,8 @@
-import { NextRequest } from "next/server"
+import type { NextRequest } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 
 // Mock announcements data with proper role-based access control
-let announcements: any[] = [
+const announcements: any[] = [
   {
     id: "1",
     title: "Parent-Teacher Conference Week",
@@ -62,9 +62,9 @@ let announcements: any[] = [
 
 // Helper function to filter announcements based on user role
 function getAnnouncementsForRole(role: string): any[] {
-  return announcements.filter(announcement => {
+  return announcements.filter((announcement) => {
     if (!announcement.isActive) return false
-    
+
     switch (announcement.targetAudience) {
       case "all":
         return true
@@ -83,16 +83,15 @@ function getAnnouncementsForRole(role: string): any[] {
 // Get announcements for authenticated user's role
 export async function GET(request: NextRequest) {
   try {
-    // Server-side authentication: Get the actual authenticated user
     const currentUser = await getCurrentUser()
     if (!currentUser) {
       return Response.json({ error: "Authentication required" }, { status: 401 })
     }
 
-    // Use the authenticated user's role instead of trusting client-supplied role
-    const filteredAnnouncements = getAnnouncementsForRole(currentUser.role)
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()) // Sort by newest first
-    
+    const filteredAnnouncements = getAnnouncementsForRole(currentUser.role).sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    ) // Sort by newest first
+
     return Response.json({ announcements: filteredAnnouncements })
   } catch (error) {
     console.error("Error fetching announcements:", error)
@@ -104,7 +103,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const { title, content, authorId, authorName, targetAudience, priority = "medium" } = await request.json()
-    
+
     if (!title || !content || !authorId || !authorName || !targetAudience) {
       return Response.json({ error: "Missing required fields" }, { status: 400 })
     }
@@ -119,7 +118,7 @@ export async function POST(request: NextRequest) {
     if (currentUser.id !== authorId) {
       return Response.json({ error: "Author ID mismatch - cannot impersonate other users" }, { status: 403 })
     }
-    
+
     const validTargetAudiences = ["all", "students", "teachers", "parents"]
     if (!validTargetAudiences.includes(targetAudience)) {
       return Response.json({ error: "Invalid target audience" }, { status: 400 })
@@ -141,12 +140,12 @@ export async function POST(request: NextRequest) {
       isActive: true,
       createdAt: new Date().toISOString(),
     }
-    
+
     announcements.push(newAnnouncement)
-    
-    return Response.json({ 
+
+    return Response.json({
       announcement: newAnnouncement,
-      success: true 
+      success: true,
     })
   } catch (error) {
     console.error("Error creating announcement:", error)
@@ -158,18 +157,18 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const { id, title, content, authorId, targetAudience, priority, isActive } = await request.json()
-    
+
     if (!id || !authorId) {
       return Response.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const announcementIndex = announcements.findIndex(a => a.id === id)
+    const announcementIndex = announcements.findIndex((a) => a.id === id)
     if (announcementIndex === -1) {
       return Response.json({ error: "Announcement not found" }, { status: 404 })
     }
 
     const announcement = announcements[announcementIndex]
-    
+
     // Check if the user is the author of this announcement
     if (announcement.author.id !== authorId) {
       return Response.json({ error: "You can only edit your own announcements" }, { status: 403 })
@@ -180,13 +179,13 @@ export async function PUT(request: NextRequest) {
     if (content) announcement.content = content.trim()
     if (targetAudience) announcement.targetAudience = targetAudience
     if (priority) announcement.priority = priority
-    if (typeof isActive === 'boolean') announcement.isActive = isActive
-    
+    if (typeof isActive === "boolean") announcement.isActive = isActive
+
     announcement.timestamp = new Date().toISOString()
-    
-    return Response.json({ 
+
+    return Response.json({
       announcement,
-      success: true 
+      success: true,
     })
   } catch (error) {
     console.error("Error updating announcement:", error)
@@ -198,20 +197,20 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const id = searchParams.get('id')
-    const authorId = searchParams.get('authorId')
-    
+    const id = searchParams.get("id")
+    const authorId = searchParams.get("authorId")
+
     if (!id || !authorId) {
       return Response.json({ error: "Missing required parameters" }, { status: 400 })
     }
 
-    const announcementIndex = announcements.findIndex(a => a.id === id)
+    const announcementIndex = announcements.findIndex((a) => a.id === id)
     if (announcementIndex === -1) {
       return Response.json({ error: "Announcement not found" }, { status: 404 })
     }
 
     const announcement = announcements[announcementIndex]
-    
+
     // Check if the user is the author of this announcement
     if (announcement.author.id !== authorId) {
       return Response.json({ error: "You can only delete your own announcements" }, { status: 403 })
@@ -219,7 +218,7 @@ export async function DELETE(request: NextRequest) {
 
     // Remove the announcement
     announcements.splice(announcementIndex, 1)
-    
+
     return Response.json({ success: true })
   } catch (error) {
     console.error("Error deleting announcement:", error)

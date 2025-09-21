@@ -1,54 +1,74 @@
-import { createClient } from "@/lib/supabase/server"
-import { NextRequest } from "next/server"
+import type { NextRequest } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 
 // Mock data store representing user relationships (in production, this would be in a database)
 // This simulates the relationships between users to enforce proper access control
 const userRelationships = {
-  "student_1": { // Alex Johnson
-    id: "student_1", name: "Alex Johnson", role: "student", 
-    parent: "parent_1", 
+  student_1: {
+    // Alex Johnson
+    id: "student_1",
+    name: "Alex Johnson",
+    role: "student",
+    parent: "parent_1",
     teachers: ["teacher_1", "teacher_2"],
-    peers: ["student_2", "student_3"]
+    peers: ["student_2", "student_3"],
   },
-  "student_2": { // Emma Davis
-    id: "student_2", name: "Emma Davis", role: "student",
+  student_2: {
+    // Emma Davis
+    id: "student_2",
+    name: "Emma Davis",
+    role: "student",
     parent: "parent_2",
     teachers: ["teacher_1", "teacher_3"],
-    peers: ["student_1", "student_3"]
+    peers: ["student_1", "student_3"],
   },
-  "parent_1": { // Michael Brown (Alex's parent)
-    id: "parent_1", name: "Michael Brown", role: "parent",
+  parent_1: {
+    // Michael Brown (Alex's parent)
+    id: "parent_1",
+    name: "Michael Brown",
+    role: "parent",
     children: ["student_1"],
-    childrenTeachers: ["teacher_1", "teacher_2"]
+    childrenTeachers: ["teacher_1", "teacher_2"],
   },
-  "parent_2": { // Sarah Davis (Emma's parent)
-    id: "parent_2", name: "Sarah Davis", role: "parent", 
+  parent_2: {
+    // Sarah Davis (Emma's parent)
+    id: "parent_2",
+    name: "Sarah Davis",
+    role: "parent",
     children: ["student_2"],
-    childrenTeachers: ["teacher_1", "teacher_3"]
+    childrenTeachers: ["teacher_1", "teacher_3"],
   },
-  "teacher_1": { // Mrs. Wilson
-    id: "teacher_1", name: "Mrs. Wilson", role: "teacher",
+  teacher_1: {
+    // Mrs. Wilson
+    id: "teacher_1",
+    name: "Mrs. Wilson",
+    role: "teacher",
     students: ["student_1", "student_2"],
     parents: ["parent_1", "parent_2"],
-    colleagues: ["teacher_2", "teacher_3"]
+    colleagues: ["teacher_2", "teacher_3"],
   },
-  "teacher_2": { // Mr. Davis
-    id: "teacher_2", name: "Mr. Davis", role: "teacher",
-    students: ["student_1", "student_3"], 
+  teacher_2: {
+    // Mr. Davis
+    id: "teacher_2",
+    name: "Mr. Davis",
+    role: "teacher",
+    students: ["student_1", "student_3"],
     parents: ["parent_1", "parent_3"],
-    colleagues: ["teacher_1", "teacher_3"]
+    colleagues: ["teacher_1", "teacher_3"],
   },
-  "teacher_3": { // Dr. Smith
-    id: "teacher_3", name: "Dr. Smith", role: "teacher",
+  teacher_3: {
+    // Dr. Smith
+    id: "teacher_3",
+    name: "Dr. Smith",
+    role: "teacher",
     students: ["student_2", "student_3"],
-    parents: ["parent_2", "parent_3"], 
-    colleagues: ["teacher_1", "teacher_2"]
-  }
+    parents: ["parent_2", "parent_3"],
+    colleagues: ["teacher_1", "teacher_2"],
+  },
 }
 
 // Mock conversations - demonstrating proper access control scenarios
-let conversations: any[] = [
+const conversations: any[] = [
   {
     id: "1", // Teacher-Parent conversation about Alex
     participants: [
@@ -62,7 +82,7 @@ let conversations: any[] = [
     isStarred: true,
   },
   {
-    id: "2", // Student-Teacher conversation 
+    id: "2", // Student-Teacher conversation
     participants: [
       { id: "student_1", name: "Alex Johnson", role: "student", avatar: "/student-avatar.png" },
       { id: "teacher_1", name: "Mrs. Wilson", role: "teacher", avatar: "/teacher-avatar.png" },
@@ -120,21 +140,22 @@ let conversations: any[] = [
     timestamp: new Date(Date.now() - 18000000).toISOString(),
     unreadCount: 0,
     isStarred: false,
-  }
+  },
 ]
 
-let messages: any[] = [
+const messages: any[] = [
   {
     id: "1",
     conversationId: "1",
     sender: { id: "teacher_1", name: "Mrs. Wilson", role: "teacher", avatar: "/teacher-avatar.png" },
-    content: "Alex did exceptionally well on today's quiz! His understanding of quadratic equations has really improved.",
+    content:
+      "Alex did exceptionally well on today's quiz! His understanding of quadratic equations has really improved.",
     timestamp: new Date(Date.now() - 3600000).toISOString(),
     isRead: true,
   },
   {
     id: "2",
-    conversationId: "1", 
+    conversationId: "1",
     sender: { id: "parent_1", name: "Michael Brown", role: "parent", avatar: "/parent-avatar.png" },
     content: "That's wonderful to hear! We've been working on practice problems at home.",
     timestamp: new Date(Date.now() - 2700000).toISOString(),
@@ -160,7 +181,8 @@ let messages: any[] = [
     id: "5",
     conversationId: "2",
     sender: { id: "teacher_1", name: "Mrs. Wilson", role: "teacher", avatar: "/teacher-avatar.png" },
-    content: "Of course! The discriminant is b² - 4ac. It tells us how many real solutions the equation has. Would you like me to work through an example?",
+    content:
+      "Of course! The discriminant is b² - 4ac. It tells us how many real solutions the equation has. Would you like me to work through an example?",
     timestamp: new Date(Date.now() - 6900000).toISOString(),
     isRead: true,
   },
@@ -179,7 +201,7 @@ let messages: any[] = [
     content: "Want to study together for the math test?",
     timestamp: new Date(Date.now() - 14400000).toISOString(),
     isRead: false,
-  }
+  },
 ]
 
 // Helper function to check if a user can access a conversation
@@ -191,23 +213,39 @@ function canUserAccessConversation(userId: string, conversation: any): boolean {
   const isParticipant = conversation.participants.some((p: any) => p.id === userId)
   if (isParticipant) return true
 
-  // For students: can see conversations about them even if they're not direct participants
+  // For students: can see conversations about them AND conversations with their parents/teachers
   if (user.role === "student") {
-    return conversation.relatedStudents?.includes(userId) || false
+    // Can see conversations they're related to
+    const isRelatedStudent = conversation.relatedStudents?.includes(userId)
+    // Can see conversations between their parent and teachers
+    const isParentTeacherConversation =
+      conversation.participants.some((p: any) => p.id === (user as any).parent) &&
+      conversation.participants.some((p: any) => (user as any).teachers?.includes(p.id))
+    return isRelatedStudent || isParentTeacherConversation
   }
 
-  // For parents: can see conversations about their children
+  // For parents: can see conversations about their children AND with their children's teachers
   if (user.role === "parent") {
-    return conversation.relatedStudents?.some((studentId: string) => 
-      (user as any).children?.includes(studentId)
-    ) || false
+    // Can see conversations about their children
+    const isAboutTheirChild = conversation.relatedStudents?.some((studentId: string) =>
+      (user as any).children?.includes(studentId),
+    )
+    // Can see conversations with their children's teachers
+    const isWithChildrensTeachers = conversation.participants.some((p: any) =>
+      (user as any).childrenTeachers?.includes(p.id),
+    )
+    return isAboutTheirChild || isWithChildrensTeachers
   }
 
-  // For teachers: can see conversations about their students
+  // For teachers: can see conversations about their students AND with parents of their students
   if (user.role === "teacher") {
-    return conversation.relatedStudents?.some((studentId: string) => 
-      (user as any).students?.includes(studentId)
-    ) || false
+    // Can see conversations about their students
+    const isAboutTheirStudents = conversation.relatedStudents?.some((studentId: string) =>
+      (user as any).students?.includes(studentId),
+    )
+    // Can see conversations with parents of their students
+    const isWithStudentParents = conversation.participants.some((p: any) => (user as any).parents?.includes(p.id))
+    return isAboutTheirStudents || isWithStudentParents
   }
 
   return false
@@ -217,37 +255,35 @@ function canUserAccessConversation(userId: string, conversation: any): boolean {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const conversationId = searchParams.get('conversationId')
-    const clientUserId = searchParams.get('userId')
-    
+    const conversationId = searchParams.get("conversationId")
+    const clientUserId = searchParams.get("userId")
+
     // Server-side authentication: Get the actual authenticated user
     const currentUser = await getCurrentUser()
     if (!currentUser) {
       return Response.json({ error: "Authentication required" }, { status: 401 })
     }
-    
+
     // Verify the client-supplied userId matches the authenticated user (prevent impersonation)
     if (clientUserId && clientUserId !== currentUser.id) {
       return Response.json({ error: "User ID mismatch" }, { status: 403 })
     }
-    
+
     const userId = currentUser.id // Use server-validated user ID
-    
+
     if (conversationId) {
       // Get messages for a specific conversation (check access first)
-      const conversation = conversations.find(conv => conv.id === conversationId)
+      const conversation = conversations.find((conv) => conv.id === conversationId)
       if (!conversation || !canUserAccessConversation(userId, conversation)) {
         return Response.json({ error: "Access denied" }, { status: 403 })
       }
-      
-      const conversationMessages = messages.filter(msg => msg.conversationId === conversationId)
+
+      const conversationMessages = messages.filter((msg) => msg.conversationId === conversationId)
       return Response.json({ messages: conversationMessages })
     } else {
       // Get all conversations - filter by user access rights
-      const filteredConversations = conversations.filter(conv => 
-        canUserAccessConversation(userId, conv)
-      )
-      
+      const filteredConversations = conversations.filter((conv) => canUserAccessConversation(userId, conv))
+
       return Response.json({ conversations: filteredConversations })
     }
   } catch (error) {
@@ -260,7 +296,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const { conversationId, content } = await request.json()
-    
+
     if (!conversationId || !content) {
       return Response.json({ error: "Missing required fields" }, { status: 400 })
     }
@@ -277,7 +313,7 @@ export async function POST(request: NextRequest) {
     const senderRole = currentUser.role
 
     // Check if user can access this conversation
-    const conversation = conversations.find(conv => conv.id === conversationId)
+    const conversation = conversations.find((conv) => conv.id === conversationId)
     if (!conversation || !canUserAccessConversation(senderId, conversation)) {
       return Response.json({ error: "Access denied" }, { status: 403 })
     }
@@ -290,26 +326,26 @@ export async function POST(request: NextRequest) {
         id: senderId,
         name: senderName,
         role: senderRole,
-        avatar: `/${senderRole}-avatar.png`
+        avatar: `/${senderRole}-avatar.png`,
       },
       content: content.trim(),
       timestamp: new Date().toISOString(),
       isRead: false,
     }
-    
+
     // Add message to mock store
     messages.push(newMessage)
-    
+
     // Update conversation's last message and timestamp
     if (conversation) {
       conversation.lastMessage = content.slice(0, 50) + (content.length > 50 ? "..." : "")
       conversation.timestamp = newMessage.timestamp
       conversation.unreadCount += 1
     }
-    
-    return Response.json({ 
+
+    return Response.json({
       message: newMessage,
-      success: true 
+      success: true,
     })
   } catch (error) {
     console.error("Error sending message:", error)
@@ -321,7 +357,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const { participants, initialMessage, createdBy } = await request.json()
-    
+
     if (!participants || participants.length < 2 || !createdBy) {
       return Response.json({ error: "Missing required fields" }, { status: 400 })
     }
@@ -342,12 +378,12 @@ export async function PUT(request: NextRequest) {
       unreadCount: 0,
       isStarred: false,
     }
-    
+
     conversations.push(newConversation)
-    
-    return Response.json({ 
+
+    return Response.json({
       conversation: newConversation,
-      success: true 
+      success: true,
     })
   } catch (error) {
     console.error("Error creating conversation:", error)

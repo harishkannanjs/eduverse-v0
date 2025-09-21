@@ -1,12 +1,12 @@
-import { NextRequest } from "next/server"
+import type { NextRequest } from "next/server"
 
 // Mock calendar tasks data
-let calendarTasks: any[] = [
+const calendarTasks: any[] = [
   {
     id: "1",
     title: "Math Quiz - Quadratic Equations",
     description: "Review chapters 4-6 before the quiz",
-    date: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Tomorrow
+    date: new Date(Date.now() + 86400000).toISOString().split("T")[0], // Tomorrow
     time: "10:00 AM",
     type: "assignment", // assignment, reminder, event, meeting
     priority: "high",
@@ -16,15 +16,15 @@ let calendarTasks: any[] = [
     reminderSettings: {
       enabled: true,
       remindBefore: 60, // minutes before
-      reminderSent: false
+      reminderSent: false,
     },
     createdAt: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
   },
   {
-    id: "2", 
+    id: "2",
     title: "Study Chemistry with Emma",
     description: "Group study session for upcoming chemistry test",
-    date: new Date(Date.now() + 172800000).toISOString().split('T')[0], // Day after tomorrow
+    date: new Date(Date.now() + 172800000).toISOString().split("T")[0], // Day after tomorrow
     time: "3:00 PM",
     type: "event",
     priority: "medium",
@@ -34,7 +34,7 @@ let calendarTasks: any[] = [
     reminderSettings: {
       enabled: true,
       remindBefore: 120, // 2 hours before
-      reminderSent: false
+      reminderSent: false,
     },
     createdAt: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
   },
@@ -42,7 +42,7 @@ let calendarTasks: any[] = [
     id: "3",
     title: "Parent-Teacher Conference",
     description: "Discussion about Alex's progress in mathematics",
-    date: new Date(Date.now() + 259200000).toISOString().split('T')[0], // 3 days from now
+    date: new Date(Date.now() + 259200000).toISOString().split("T")[0], // 3 days from now
     time: "2:30 PM",
     type: "meeting",
     priority: "high",
@@ -52,7 +52,7 @@ let calendarTasks: any[] = [
     reminderSettings: {
       enabled: true,
       remindBefore: 1440, // 24 hours before
-      reminderSent: false
+      reminderSent: false,
     },
     createdAt: new Date(Date.now() - 345600000).toISOString(), // 4 days ago
   },
@@ -60,7 +60,7 @@ let calendarTasks: any[] = [
     id: "4",
     title: "Complete History Research Paper",
     description: "Write a 5-page paper on World War II",
-    date: new Date(Date.now() + 604800000).toISOString().split('T')[0], // 1 week from now
+    date: new Date(Date.now() + 604800000).toISOString().split("T")[0], // 1 week from now
     time: "11:59 PM",
     type: "assignment",
     priority: "high",
@@ -70,62 +70,73 @@ let calendarTasks: any[] = [
     reminderSettings: {
       enabled: true,
       remindBefore: 2880, // 48 hours before
-      reminderSent: false
+      reminderSent: false,
     },
     createdAt: new Date().toISOString(),
-  }
+  },
 ]
 
 // Helper function to check if user can access a task
 function canUserAccessTask(userId: string, task: any): boolean {
   // User can see tasks they created or tasks assigned to them
-  return task.createdBy.id === userId || 
-         task.assignedTo.includes(userId) ||
-         (task.assignedTo.length === 0 && task.createdBy.id === userId)
+  return (
+    task.createdBy.id === userId ||
+    task.assignedTo.includes(userId) ||
+    (task.assignedTo.length === 0 && task.createdBy.id === userId)
+  )
 }
 
 // Get calendar tasks for a user
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
-    const date = searchParams.get('date') // YYYY-MM-DD format
-    const month = searchParams.get('month') // YYYY-MM format
-    const taskId = searchParams.get('taskId')
-    
+    const userId = searchParams.get("userId")
+    const date = searchParams.get("date") // YYYY-MM-DD format
+    const month = searchParams.get("month") // YYYY-MM format
+    const taskId = searchParams.get("taskId")
+    const startDate = searchParams.get("startDate") // For date range queries
+    const endDate = searchParams.get("endDate")
+
     if (!userId) {
       return Response.json({ error: "User ID is required" }, { status: 400 })
     }
 
     if (taskId) {
       // Get specific task
-      const task = calendarTasks.find(t => t.id === taskId)
+      const task = calendarTasks.find((t) => t.id === taskId)
       if (!task) {
         return Response.json({ error: "Task not found" }, { status: 404 })
       }
-      
+
       if (!canUserAccessTask(userId, task)) {
         return Response.json({ error: "Access denied" }, { status: 403 })
       }
-      
+
       return Response.json({ task })
     }
 
     // Filter tasks user can access
-    let filteredTasks = calendarTasks.filter(task => canUserAccessTask(userId, task))
+    let filteredTasks = calendarTasks.filter((task) => canUserAccessTask(userId, task))
 
     // Filter by date if provided
     if (date) {
-      filteredTasks = filteredTasks.filter(task => task.date === date)
+      filteredTasks = filteredTasks.filter((task) => task.date === date)
     } else if (month) {
-      filteredTasks = filteredTasks.filter(task => task.date.startsWith(month))
+      filteredTasks = filteredTasks.filter((task) => task.date.startsWith(month))
+    } else if (startDate && endDate) {
+      filteredTasks = filteredTasks.filter((task) => {
+        const taskDate = new Date(task.date)
+        const start = new Date(startDate)
+        const end = new Date(endDate)
+        return taskDate >= start && taskDate <= end
+      })
     }
 
     // Sort by date and time
     filteredTasks.sort((a, b) => {
       const dateCompare = new Date(a.date).getTime() - new Date(b.date).getTime()
       if (dateCompare !== 0) return dateCompare
-      
+
       // If same date, sort by time
       const timeA = convertTimeToMinutes(a.time)
       const timeB = convertTimeToMinutes(b.time)
@@ -142,18 +153,18 @@ export async function GET(request: NextRequest) {
 // Create a new calendar task
 export async function POST(request: NextRequest) {
   try {
-    const { 
-      title, 
-      description, 
-      date, 
-      time, 
-      type = "reminder", 
-      priority = "medium", 
-      createdBy, 
+    const {
+      title,
+      description,
+      date,
+      time,
+      type = "reminder",
+      priority = "medium",
+      createdBy,
       assignedTo = [],
-      reminderSettings = { enabled: false }
+      reminderSettings = { enabled: false },
     } = await request.json()
-    
+
     if (!title || !date || !createdBy || !createdBy.id) {
       return Response.json({ error: "Missing required fields" }, { status: 400 })
     }
@@ -189,16 +200,16 @@ export async function POST(request: NextRequest) {
       reminderSettings: {
         enabled: reminderSettings.enabled || false,
         remindBefore: reminderSettings.remindBefore || 60,
-        reminderSent: false
+        reminderSent: false,
       },
       createdAt: new Date().toISOString(),
     }
-    
+
     calendarTasks.push(newTask)
-    
-    return Response.json({ 
+
+    return Response.json({
       task: newTask,
-      success: true 
+      success: true,
     })
   } catch (error) {
     console.error("Error creating calendar task:", error)
@@ -209,24 +220,14 @@ export async function POST(request: NextRequest) {
 // Update a calendar task
 export async function PUT(request: NextRequest) {
   try {
-    const { 
-      id, 
-      title, 
-      description, 
-      date, 
-      time, 
-      type, 
-      priority, 
-      isCompleted, 
-      reminderSettings, 
-      userId 
-    } = await request.json()
-    
+    const { id, title, description, date, time, type, priority, isCompleted, reminderSettings, userId } =
+      await request.json()
+
     if (!id || !userId) {
       return Response.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const task = calendarTasks.find(t => t.id === id)
+    const task = calendarTasks.find((t) => t.id === id)
     if (!task) {
       return Response.json({ error: "Task not found" }, { status: 404 })
     }
@@ -238,7 +239,7 @@ export async function PUT(request: NextRequest) {
 
     // If user is not the creator, they can only update completion status
     if (task.createdBy.id !== userId) {
-      if (typeof isCompleted === 'boolean') {
+      if (typeof isCompleted === "boolean") {
         task.isCompleted = isCompleted
       }
       return Response.json({ task, success: true })
@@ -251,17 +252,17 @@ export async function PUT(request: NextRequest) {
     if (time) task.time = time
     if (type) task.type = type
     if (priority) task.priority = priority
-    if (typeof isCompleted === 'boolean') task.isCompleted = isCompleted
+    if (typeof isCompleted === "boolean") task.isCompleted = isCompleted
     if (reminderSettings) {
       task.reminderSettings = {
         ...task.reminderSettings,
-        ...reminderSettings
+        ...reminderSettings,
       }
     }
-    
-    return Response.json({ 
+
+    return Response.json({
       task,
-      success: true 
+      success: true,
     })
   } catch (error) {
     console.error("Error updating calendar task:", error)
@@ -273,20 +274,20 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const taskId = searchParams.get('taskId')
-    const userId = searchParams.get('userId')
-    
+    const taskId = searchParams.get("taskId")
+    const userId = searchParams.get("userId")
+
     if (!taskId || !userId) {
       return Response.json({ error: "Missing required parameters" }, { status: 400 })
     }
 
-    const taskIndex = calendarTasks.findIndex(t => t.id === taskId)
+    const taskIndex = calendarTasks.findIndex((t) => t.id === taskId)
     if (taskIndex === -1) {
       return Response.json({ error: "Task not found" }, { status: 404 })
     }
 
     const task = calendarTasks[taskIndex]
-    
+
     // Only the creator can delete a task
     if (task.createdBy.id !== userId) {
       return Response.json({ error: "Only the creator can delete this task" }, { status: 403 })
@@ -294,7 +295,7 @@ export async function DELETE(request: NextRequest) {
 
     // Remove the task
     calendarTasks.splice(taskIndex, 1)
-    
+
     return Response.json({ success: true })
   } catch (error) {
     console.error("Error deleting calendar task:", error)
@@ -305,12 +306,12 @@ export async function DELETE(request: NextRequest) {
 // Helper function to convert time string to minutes for sorting
 function convertTimeToMinutes(timeString: string): number {
   if (!timeString) return 0
-  
-  const [time, period] = timeString.split(' ')
-  const [hours, minutes] = time.split(':').map(Number)
-  
+
+  const [time, period] = timeString.split(" ")
+  const [hours, minutes] = time.split(":").map(Number)
+
   let totalMinutes = (hours % 12) * 60 + (minutes || 0)
-  if (period === 'PM') totalMinutes += 12 * 60
-  
+  if (period === "PM") totalMinutes += 12 * 60
+
   return totalMinutes
 }
