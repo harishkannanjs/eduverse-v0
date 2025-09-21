@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { AIInsightsPanel } from "@/components/ai-insights-panel"
-import { getCurrentUser, type User } from "@/lib/auth"
+import { getCurrentUser, type User } from "@/lib/auth-client"
 
 export default function AIInsightsPage() {
   const [user, setUser] = useState<User | null>(null)
