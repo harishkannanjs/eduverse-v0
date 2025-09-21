@@ -5,8 +5,6 @@ export const maxDuration = 30
 
 export async function POST(req: Request) {
   try {
-    const supabase = await createClient()
-
     // Check if Gemini is configured
     if (!process.env.GEMINI_API_KEY) {
       return new Response("AI service not configured", { status: 500 })
@@ -43,7 +41,7 @@ Tailor your responses to their role:
 
 Always be encouraging, educational, and age-appropriate. Provide clear explanations and examples when possible. Address them by name when appropriate.`
 
-    const response = await streamChat(messages, systemMessage, req.signal)
+    const response = await streamChat(messages, systemMessage)
     
     // Return JSON response that the client expects
     return Response.json({ response })

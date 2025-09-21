@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import { getCurrentUser, User } from "@/lib/auth"
 import {
   MessageSquare,
   Send,
@@ -56,55 +57,81 @@ export function CommunicationHub() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const [announcements, setAnnouncements] = useState<any[]>([])
+  const [loadingUser, setLoadingUser] = useState(true)
 
-  const announcements = [
-    {
-      id: "1",
-      title: "Parent-Teacher Conference Week",
-      content: "Virtual conferences scheduled for next week. Please check your email for time slots.",
-      author: "School Administration",
-      timestamp: "2h ago",
-      priority: "high" as const,
-    },
-    {
-      id: "2",
-      title: "Math Department Update",
-      content: "New interactive learning tools have been added to the algebra curriculum.",
-      author: "Mrs. Wilson",
-      timestamp: "1d ago",
-      priority: "medium" as const,
-    },
-    {
-      id: "3",
-      title: "Wellness Week Activities",
-      content: "Join us for mindfulness sessions and stress management workshops this week.",
-      author: "Counseling Department",
-      timestamp: "2d ago",
-      priority: "low" as const,
-    },
-  ]
-
-  // Load conversations on component mount
+  // Load user and data on component mount
   useEffect(() => {
-    loadConversations()
+    loadCurrentUser()
   }, [])
+
+  if (loadingUser) {
+    return <div className="h-[calc(100vh-8rem)] flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+        <p>Loading your communication hub...</p>
+      </div>
+    </div>
+  }
+
+  if (!currentUser) {
+    return <div className="h-[calc(100vh-8rem)] flex items-center justify-center">
+      <div className="text-center">
+        <p className="text-destructive">Unable to load user information. Please try refreshing the page.</p>
+      </div>
+    </div>
+  }
+
+  // Load conversations when user is loaded
+  useEffect(() => {
+    if (currentUser) {
+      loadConversations()
+      loadAnnouncements()
+    }
+  }, [currentUser])
 
   // Load messages when a conversation is selected
   useEffect(() => {
-    if (selectedConversation) {
+    if (selectedConversation && currentUser) {
       loadMessages(selectedConversation)
     }
-  }, [selectedConversation])
+  }, [selectedConversation, currentUser])
+
+  const loadCurrentUser = async () => {
+    try {
+      const user = await getCurrentUser()
+      setCurrentUser(user)
+    } catch (error) {
+      console.error('Error loading current user:', error)
+    } finally {
+      setLoadingUser(false)
+    }
+  }
 
   const loadConversations = async () => {
+    if (!currentUser) return
     try {
-      const response = await fetch('/api/messages')
+      const response = await fetch(`/api/messages?userId=${currentUser.id}`)
       const data = await response.json()
       if (response.ok) {
         setConversations(data.conversations || [])
       }
     } catch (error) {
       console.error('Error loading conversations:', error)
+    }
+  }
+
+  const loadAnnouncements = async () => {
+    if (!currentUser) return
+    try {
+      const response = await fetch(`/api/announcements?role=${currentUser.role}`)
+      const data = await response.json()
+      if (response.ok) {
+        setAnnouncements(data.announcements || [])
+      }
+    } catch (error) {
+      console.error('Error loading announcements:', error)
     }
   }
 
@@ -121,7 +148,7 @@ export function CommunicationHub() {
   }
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation) return
+    if (!newMessage.trim() || !selectedConversation || !currentUser) return
     
     setIsLoading(true)
     try {
@@ -133,9 +160,9 @@ export function CommunicationHub() {
         body: JSON.stringify({
           conversationId: selectedConversation,
           content: newMessage,
-          senderId: 'current_user_id', // In real app, get from auth
-          senderName: 'Current User', // In real app, get from profile
-          senderRole: 'student', // In real app, get from profile
+          senderId: currentUser.id,
+          senderName: currentUser.name,
+          senderRole: currentUser.role,
         }),
       })
       
@@ -398,10 +425,12 @@ export function CommunicationHub() {
                   <CardTitle>School Announcements</CardTitle>
                   <CardDescription>Important updates and notifications</CardDescription>
                 </div>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Announcement
-                </Button>
+                {currentUser.role === "teacher" && (
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    New Announcement
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent>
